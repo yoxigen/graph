@@ -15,4 +15,7 @@ export default abstract class Renderer {
   abstract getSize(): Dimensions;
   abstract drawCircle(center: Coordinates, radius: number): void;
   abstract drawLine(from: Coordinates, to: Coordinates): void;
+  abstract drawLines(positions: [Coordinates, Coordinates][]): void;
+  abstract setLineColor(color: string): void;
+  abstract setLineWidth(width: number): void;
 }

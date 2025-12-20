@@ -17,29 +17,21 @@ export function getForceBetweenNodes(
   { position: pos1 }: GraphNode,
   { position: pos2 }: GraphNode,
   charge: number,
-  minDistanceSq = 0
+  minDistance = 0
 ): Vector {
   // 1. Calculate the difference vector
   let dx = pos1[0] - pos2[0];
   let dy = pos1[1] - pos2[1];
 
   // 2. Calculate distance squared first (cheaper than Math.sqrt)
-  let distanceSq = dx * dx + dy * dy;
-
-  // Guard against nodes being on top of each other
-  if (distanceSq < minDistanceSq) {
-    distanceSq = minDistanceSq;
-  }
-
-  // 3. Calculate distance and force magnitude
-  const distance = Math.sqrt(distanceSq);
+  const distance = Math.max(minDistance, Math.hypot(dx, dy));
 
   // Formula: Force = Strength / distance squared
   // We then divide by distance again to normalize the vector
-  const forceMag = charge / distanceSq;
+  const forceMag = charge / distance ** 2;
+  const vectorForce = forceMag / distance;
 
-  // 4. Return the force vector to be added to acceleration
-  return [(dx / distance) * forceMag, (dy / distance) * forceMag];
+  return [dx * vectorForce, dy * vectorForce];
 }
 
 export function getLinkForce(

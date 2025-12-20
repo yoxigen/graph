@@ -1,6 +1,6 @@
-import Renderer from '../../renderers/Renderer';
 import { Coordinates, Vector } from '../../types/position.types';
 import { createArray } from '../../utils/array_utils';
+import EventBus from '../../utils/EventBus';
 import {
   getForceBetweenNodes,
   getGravityForce,
@@ -11,22 +11,34 @@ import GraphNode from './GraphNode';
 
 export type GraphConfig = {
   charge: number;
-  centerGravity: number;
+  gravityForce: number;
+  gravityCenter: Coordinates;
   minDistance: number;
   minEnergy: number;
   linkStrength: number;
   linkLength: number;
   friction: number;
+  warmupIterations: number;
+  alphaDecay: number;
+  alphaMin: number;
+  alphaTarget: number;
+  randomizePositions: boolean;
 };
 
 const DEFAULT_OPTIONS: GraphConfig = {
-  charge: 400,
-  centerGravity: 0.01,
-  minDistance: 6, // Prevents "infinite" force when nodes overlap
-  minEnergy: 0.1,
+  charge: 500,
+  gravityForce: 0.01,
+  minDistance: 10, // Prevents "infinite" force when nodes overlap
+  minEnergy: 0.2,
   linkStrength: 0.1,
-  linkLength: 10,
-  friction: 0.04,
+  linkLength: 20,
+  friction: 0.05,
+  warmupIterations: 0,
+  gravityCenter: undefined,
+  alphaMin: 0.001,
+  alphaDecay: 1 - Math.pow(0.001, 1 / 300),
+  alphaTarget: 0,
+  randomizePositions: false,
 };
 
 export type GraphLinkData = {
@@ -34,75 +46,106 @@ export type GraphLinkData = {
   to: number;
 };
 
+export type GraphEvent<TNodeData> = {
+  nodes: GraphNode<TNodeData>[];
+  links: GraphLink<TNodeData>[];
+};
+
 export default class Graph<TNodeData> {
   nodes: GraphNode<TNodeData>[];
   links: GraphLink<TNodeData>[];
   config: GraphConfig;
+
+  #isInit = false;
 
   constructor(
     { nodes, links }: { nodes: TNodeData[]; links?: GraphLinkData[] },
     config: Partial<GraphConfig> = {}
   ) {
     this.nodes = nodes.map(d => new GraphNode(d));
-    this.links = (links ?? []).map(({ from, to }) => ({
-      source: this.nodes[from],
-      target: this.nodes[to],
-    }));
+    this.links = (links ?? [])
+      .map(({ from, to }) =>
+        from >= this.nodes.length || to >= this.nodes.length
+          ? null
+          : {
+              source: this.nodes[from],
+              target: this.nodes[to],
+            }
+      )
+      .filter(Boolean);
     this.config = Object.assign({}, DEFAULT_OPTIONS, config);
   }
 
-  render(renderer: Renderer) {
-    const generator = this.generate(renderer);
-    const step = () => {
-      if (!generator.next().done) {
-        requestAnimationFrame(step);
-      } else {
-        console.log('DONE');
-      }
-    };
-
-    step();
+  #init() {
+    const angle = (Math.PI * 2) / this.nodes.length;
+    if (this.config.randomizePositions) {
+      // Initialize the nodes in the center of the graph and give each of them an initial random velocity, to kick things off
+      this.nodes.forEach(node => {
+        node.position = [
+          this.config.gravityCenter[0] + (Math.random() - 0.5) * 2,
+          this.config.gravityCenter[1] + (Math.random() - 0.5) * 2,
+        ];
+      });
+    } else {
+      this.nodes.forEach((node, i) => {
+        node.position = [
+          this.config.gravityCenter[0] +
+            (this.config.minDistance + 1) * Math.cos(angle * i),
+          this.config.gravityCenter[1] +
+            (this.config.minDistance + 1) * Math.sin(angle * i),
+        ];
+      });
+    }
+    this.#isInit = true;
   }
 
-  *generate(renderer: Renderer): Generator<void> {
-    const center = renderer.getSize().map(v => v / 2) as Coordinates;
+  assignConfig(config: Partial<GraphConfig>) {
+    this.config = Object.assign(this.config, config);
+  }
 
-    this.nodes.forEach(node => {
-      node.position = center;
-      node.velocity = createArray(2, () => (Math.random() - 0.5) * 2) as Vector;
-    });
+  *generate(): Generator<number> {
+    if (!this.#isInit) {
+      this.#init();
+    }
 
     let totalEnergy = Infinity;
-    while (totalEnergy > this.config.minEnergy) {
+    let count = 0;
+    let alpha = 1;
+
+    while (
+      totalEnergy > this.config.minEnergy &&
+      alpha >= this.config.alphaMin
+    ) {
       totalEnergy = 0;
-      renderer.clear();
-      this.updateForces(center);
+
+      this.updateForces(alpha);
 
       this.nodes.forEach(node => {
-        node.updatePosition(this.config.friction);
-        renderer.drawCircle(node.position, 5);
-        totalEnergy += node.energy;
+        node.updatePosition(alpha);
+        console.log('NODE ENERGY', node.energy);
+        if (node.energy > totalEnergy) {
+          totalEnergy = node.energy;
+        }
       });
 
-      this.links.forEach(link =>
-        renderer.drawLine(link.source.position, link.target.position)
-      );
+      alpha += (this.config.alphaTarget - alpha) * this.config.alphaDecay;
 
-      if (totalEnergy > this.config.minEnergy) {
-        yield;
+      if (count >= this.config.warmupIterations) {
+        yield totalEnergy;
       }
+
+      count++;
     }
   }
 
-  private updateForces(center: Coordinates) {
-    const minDistanceSq = this.config.minDistance ** 2;
+  private updateForces(alpha: number) {
     // Nodes gravity and repulsion between each other:
     for (let i = 0; i < this.nodes.length; i++) {
       const node = this.nodes[i];
       const gravityForce = getGravityForce(
         node,
-        center,
-        this.config.centerGravity
+        this.config.gravityCenter,
+        this.config.gravityForce
       );
       node.addForce(gravityForce);
 
@@ -113,7 +156,7 @@ export default class Graph<TNodeData> {
           node,
           otherNode,
           this.config.charge,
-          minDistanceSq
+          this.config.minDistance
         );
         node.addForce(force);
         otherNode.subtractForce(force);
