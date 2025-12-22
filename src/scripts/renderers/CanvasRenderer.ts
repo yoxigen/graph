@@ -29,11 +29,21 @@ export default class CanvasRenderer extends Renderer {
     return this.size;
   }
 
-  drawCircle(center: Coordinates, radius: number) {
+  drawCircle(center: Coordinates, radius: number, color?: string) {
+    if (color) {
+      this.ctx.save();
+      this.ctx.fillStyle = color;
+    }
+
+    this.ctx.save();
     this.ctx.beginPath();
     this.ctx.moveTo(center[0] + radius, center[1]);
     this.ctx.arc(...center, radius, 0, Math.PI * 2);
     this.ctx.fill();
+
+    if (color) {
+      this.ctx.restore();
+    }
   }
 
   drawLine(from: Coordinates, to: Coordinates): void {
@@ -52,6 +62,10 @@ export default class CanvasRenderer extends Renderer {
     }
     this.ctx.stroke();
     this.ctx.restore();
+  }
+
+  setFillColor(fill: string): void {
+    this.ctx.fillStyle = fill;
   }
 
   setLineColor(color: string): void {

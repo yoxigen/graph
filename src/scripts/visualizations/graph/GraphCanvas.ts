@@ -1,10 +1,13 @@
 import CanvasRenderer from '../../renderers/CanvasRenderer';
+import { getValue } from '../../utils/config_utils';
 import { GRAPH_RENDER_CONFIG_DEFAULTS, GraphRenderConfig } from './Graph.types';
 import Graph from './Graph.vis';
 
 export default class GraphCanvas<TNodeData> {
   renderer: CanvasRenderer;
   config: GraphRenderConfig;
+
+  private raf;
 
   constructor(
     public graph: Graph<TNodeData>,
@@ -15,9 +18,23 @@ export default class GraphCanvas<TNodeData> {
     this.config = Object.assign({}, GRAPH_RENDER_CONFIG_DEFAULTS, config);
     this.renderer.setLineColor(this.config.linkColor);
     this.renderer.setLineWidth(this.config.linkWidth);
+
+    graph.on('configChange', () => {
+      console.log('GENENEN', graph.isGenerating);
+      if (!graph.isGenerating) {
+        this.render();
+      }
+    });
+
+    graph.on('dataChange', () => {
+      console.log('Data Change!');
+      this.render();
+    });
   }
 
   render() {
+    console.log('RENDER!', this.graph);
+    cancelAnimationFrame(this.raf);
     const generator = this.graph.generate();
 
     if (this.config.animate) {
@@ -25,7 +42,7 @@ export default class GraphCanvas<TNodeData> {
         const result = generator.next();
         this.draw();
         if (!result.done) {
-          requestAnimationFrame(step);
+          this.raf = requestAnimationFrame(step);
         } else {
           console.log('DONE');
         }
@@ -33,6 +50,8 @@ export default class GraphCanvas<TNodeData> {
 
       step();
     } else {
+      while (!generator.next().done);
+      this.draw();
     }
   }
 
@@ -43,7 +62,11 @@ export default class GraphCanvas<TNodeData> {
       this.graph.links.map(link => [link.source.position, link.target.position])
     );
     this.graph.nodes.forEach(node =>
-      this.renderer.drawCircle(node.position, this.config.nodeRadius)
+      this.renderer.drawCircle(
+        node.position,
+        this.config.nodeRadius,
+        getValue(this.config.nodeColor, node)
+      )
     );
   }
 }

@@ -1,6 +1,5 @@
-import { Coordinates, Vector } from '../../types/position.types';
-import { createArray } from '../../utils/array_utils';
 import EventBus from '../../utils/EventBus';
+import { GraphConfig, GraphData } from './Graph.types';
 import {
   getForceBetweenNodes,
   getGravityForce,
@@ -9,26 +8,10 @@ import {
 import type { GraphLink } from './GraphLink';
 import GraphNode from './GraphNode';
 
-export type GraphConfig = {
-  charge: number;
-  gravityForce: number;
-  gravityCenter: Coordinates;
-  minDistance: number;
-  minEnergy: number;
-  linkStrength: number;
-  linkLength: number;
-  friction: number;
-  warmupIterations: number;
-  alphaDecay: number;
-  alphaMin: number;
-  alphaTarget: number;
-  randomizePositions: boolean;
-};
-
 const DEFAULT_OPTIONS: GraphConfig = {
   charge: 500,
   gravityForce: 0.01,
-  minDistance: 10, // Prevents "infinite" force when nodes overlap
+  minDistance: 12, // Prevents "infinite" force when nodes overlap
   minEnergy: 0.2,
   linkStrength: 0.1,
   linkLength: 20,
@@ -36,7 +19,7 @@ const DEFAULT_OPTIONS: GraphConfig = {
   warmupIterations: 0,
   gravityCenter: undefined,
   alphaMin: 0.001,
-  alphaDecay: 1 - Math.pow(0.001, 1 / 300),
+  alphaDecay: 1 - Math.pow(0.001, 1 / 400),
   alphaTarget: 0,
   randomizePositions: false,
 };
@@ -46,22 +29,49 @@ export type GraphLinkData = {
   to: number;
 };
 
-export type GraphEvent<TNodeData> = {
-  nodes: GraphNode<TNodeData>[];
-  links: GraphLink<TNodeData>[];
-};
-
-export default class Graph<TNodeData> {
+export default class Graph<TNodeData> extends EventBus<{
+  configChange: Partial<GraphConfig>;
+  dataChange: void;
+}> {
   nodes: GraphNode<TNodeData>[];
   links: GraphLink<TNodeData>[];
   config: GraphConfig;
+  isGenerating: boolean;
 
-  #isInit = false;
+  private isInit = false;
+  private alpha: number;
 
-  constructor(
-    { nodes, links }: { nodes: TNodeData[]; links?: GraphLinkData[] },
-    config: Partial<GraphConfig> = {}
-  ) {
+  constructor(data: GraphData<TNodeData>, config: Partial<GraphConfig> = {}) {
+    super();
+
+    this.setData(data);
+    this.config = Object.assign({}, DEFAULT_OPTIONS, config);
+  }
+
+  #init() {
+    if (this.config.randomizePositions) {
+      // Initialize the nodes in the center of the graph and give each of them an initial random velocity, to kick things off
+      this.nodes.forEach(node => {
+        node.position = [
+          this.config.gravityCenter[0] + (Math.random() - 0.5) * 2,
+          this.config.gravityCenter[1] + (Math.random() - 0.5) * 2,
+        ];
+      });
+    } else {
+      const angle = (Math.PI * 2) / this.nodes.length;
+      this.nodes.forEach((node, i) => {
+        node.position = [
+          this.config.gravityCenter[0] + 10 * Math.cos(angle * i),
+          this.config.gravityCenter[1] + 10 * Math.sin(angle * i),
+        ];
+      });
+    }
+    this.isInit = true;
+  }
+
+  setData({ nodes, links }: GraphData<TNodeData>) {
+    const isDataChange = !!this.nodes;
+
     this.nodes = nodes.map(d => new GraphNode(d));
     this.links = (links ?? [])
       .map(({ from, to }) =>
@@ -73,30 +83,23 @@ export default class Graph<TNodeData> {
             }
       )
       .filter(Boolean);
-    this.config = Object.assign({}, DEFAULT_OPTIONS, config);
+
+    this.alpha = 1;
+    this.isInit = false;
+
+    if (isDataChange) {
+      this.emit('dataChange', null);
+    }
   }
 
-  #init() {
-    const angle = (Math.PI * 2) / this.nodes.length;
-    if (this.config.randomizePositions) {
-      // Initialize the nodes in the center of the graph and give each of them an initial random velocity, to kick things off
-      this.nodes.forEach(node => {
-        node.position = [
-          this.config.gravityCenter[0] + (Math.random() - 0.5) * 2,
-          this.config.gravityCenter[1] + (Math.random() - 0.5) * 2,
-        ];
-      });
-    } else {
-      this.nodes.forEach((node, i) => {
-        node.position = [
-          this.config.gravityCenter[0] +
-            (this.config.minDistance + 1) * Math.cos(angle * i),
-          this.config.gravityCenter[1] +
-            (this.config.minDistance + 1) * Math.sin(angle * i),
-        ];
+  setConfigValue(key: keyof GraphConfig, value: GraphConfig[typeof key]) {
+    if (this.config[key] !== value) {
+      (this.config[key] as GraphConfig[typeof key]) = value;
+      this.alpha = 1;
+      this.emit('configChange', {
+        [key]: value,
       });
     }
-    this.#isInit = true;
   }
 
   assignConfig(config: Partial<GraphConfig>) {
@@ -104,31 +107,33 @@ export default class Graph<TNodeData> {
   }
 
   *generate(): Generator<number> {
-    if (!this.#isInit) {
+    this.isGenerating = true;
+
+    if (!this.isInit) {
       this.#init();
     }
 
     let totalEnergy = Infinity;
     let count = 0;
-    let alpha = 1;
+    this.alpha = 1;
 
     while (
       totalEnergy > this.config.minEnergy &&
-      alpha >= this.config.alphaMin
+      this.alpha >= this.config.alphaMin
     ) {
       totalEnergy = 0;
 
-      this.updateForces(alpha);
+      this.updateForces();
 
       this.nodes.forEach(node => {
-        node.updatePosition(alpha);
-        console.log('NODE ENERGY', node.energy);
+        node.updatePosition(this.alpha);
         if (node.energy > totalEnergy) {
           totalEnergy = node.energy;
         }
       });
 
-      alpha += (this.config.alphaTarget - alpha) * this.config.alphaDecay;
+      this.alpha +=
+        (this.config.alphaTarget - this.alpha) * this.config.alphaDecay;
 
       if (count >= this.config.warmupIterations) {
         yield totalEnergy;
@@ -136,9 +141,11 @@ export default class Graph<TNodeData> {
 
       count++;
     }
+
+    this.isGenerating = false;
   }
 
-  private updateForces(alpha: number) {
+  private updateForces() {
     // Nodes gravity and repulsion between each other:
     for (let i = 0; i < this.nodes.length; i++) {
       const node = this.nodes[i];

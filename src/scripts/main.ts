@@ -1,49 +1,55 @@
-import { ID } from './types/general.types';
-import { createArray } from './utils/array_utils';
 import Graph from './visualizations/graph/Graph.vis';
 import GraphCanvas from './visualizations/graph/GraphCanvas';
-import miserables from '../test_data/miserables.json';
-
-interface NodeData {
-  id: ID;
-  color: string;
-  name: string;
-}
+import testData from '../test_data/graph_test_data';
+import GraphNode from './visualizations/graph/GraphNode';
+import { getHSLColors } from './color/hsl_color';
+import EditorControls from './config/EditorControls';
+import graphControls from './visualizations/graph/Graph.controls';
+import { GraphConfig } from './visualizations/graph/Graph.types';
+import dataControls from './config/DataControls';
 
 window.addEventListener('load', main);
 
 function main() {
-  const data: NodeData[] = createArray(300, id => ({
-    id,
-    color: 'blue',
-    name: id.toString(),
-  }));
-
   const rect = document.querySelector('#graph').getBoundingClientRect();
+  const { data } = testData[0];
 
-  const nodeIndexes = new Map<string, number>();
-  miserables.nodes.forEach(({ id }, i) => nodeIndexes.set(id, i));
+  const graph = new Graph(data, {
+    gravityCenter: [rect.width / 2, rect.height / 2],
+    gravityForce: 0.05,
+    charge: 800,
+    randomizePositions: true,
+    linkLength: 15,
+    // warmupIterations: 150,
+  });
 
-  const graph = new Graph(
-    {
-      nodes: miserables.nodes,
-      links: miserables.links.map(link => ({
-        from: nodeIndexes.get(link.source),
-        to: nodeIndexes.get(link.target),
-      })),
-    },
-    {
-      gravityCenter: [rect.width / 2, rect.height / 2],
-      gravityForce: 0.001,
-      charge: 800,
-      // warmupIterations: 20,
+  const groupsMap = new Map();
+  data.nodes.forEach(node => {
+    if (!groupsMap.has(node.group)) {
+      groupsMap.set(node.group, groupsMap.size);
     }
-  );
+  });
+
+  const controls = new EditorControls<GraphConfig>(graphControls, graph.config);
+  controls.on('input', ({ control, value }) => {
+    graph.setConfigValue(control.key, value);
+    controls.config = graph.config;
+  });
+
+  dataControls.on('data', data => graph.setData(data));
+  const colors = getHSLColors({
+    count: groupsMap.size,
+    hueStart: 190,
+    lightness: 0.45,
+  });
 
   const canvasGraph = new GraphCanvas(graph, document.querySelector('#graph'), {
     linkColor: '#a9a9a9',
     linkWidth: 1,
     nodeRadius: 4,
+    nodeColor: (node: GraphNode<typeof data.nodes[number]>) =>
+      colors[groupsMap.get(node.data.group)],
+    animate: false,
   });
   canvasGraph.render();
 }

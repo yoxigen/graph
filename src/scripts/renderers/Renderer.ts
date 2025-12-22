@@ -18,4 +18,5 @@ export default abstract class Renderer {
   abstract drawLines(positions: [Coordinates, Coordinates][]): void;
   abstract setLineColor(color: string): void;
   abstract setLineWidth(width: number): void;
+  abstract setFillColor(fill: string): void;
 }
