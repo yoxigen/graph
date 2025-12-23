@@ -1,4 +1,6 @@
+import { Dimensions } from '../../types/position.types';
 import EventBus from '../../utils/EventBus';
+import QuadTree from '../../utils/QuadTree';
 import { GraphConfig, GraphData } from './Graph.types';
 import {
   getForceBetweenNodes,
@@ -40,12 +42,18 @@ export default class Graph<TNodeData> extends EventBus<{
 
   private isInit = false;
   private alpha: number;
+  quadTree: QuadTree;
 
-  constructor(data: GraphData<TNodeData>, config: Partial<GraphConfig> = {}) {
+  constructor(
+    data: GraphData<TNodeData>,
+    public size: Dimensions,
+    config: Partial<GraphConfig> = {}
+  ) {
     super();
 
-    this.setData(data);
     this.config = Object.assign({}, DEFAULT_OPTIONS, config);
+
+    this.setData(data);
   }
 
   #init() {
@@ -66,6 +74,8 @@ export default class Graph<TNodeData> extends EventBus<{
         ];
       });
     }
+
+    this.quadTree = new QuadTree(this.size, this.nodes);
     this.isInit = true;
   }
 
@@ -132,6 +142,7 @@ export default class Graph<TNodeData> extends EventBus<{
         }
       });
 
+      this.quadTree = new QuadTree(this.size, this.nodes);
       this.alpha +=
         (this.config.alphaTarget - this.alpha) * this.config.alphaDecay;
 
@@ -143,6 +154,7 @@ export default class Graph<TNodeData> extends EventBus<{
     }
 
     this.isGenerating = false;
+    console.log('DONE', this.quadTree);
   }
 
   private updateForces() {

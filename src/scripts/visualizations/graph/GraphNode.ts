@@ -1,7 +1,8 @@
 import { Coordinates, Vector } from '../../types/position.types';
 import { mapVector } from '../../utils/position_utils';
+import { QuadTreeElement } from '../../utils/QuadTree';
 
-export default class GraphNode<TData = Object> {
+export default class GraphNode<TData = Object> implements QuadTreeElement {
   radius: number = 10;
   position: Coordinates;
   velocity: Vector = [0, 0];

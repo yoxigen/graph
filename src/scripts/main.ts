@@ -14,7 +14,7 @@ function main() {
   const rect = document.querySelector('#graph').getBoundingClientRect();
   const { data } = testData[0];
 
-  const graph = new Graph(data, {
+  const graph = new Graph(data, [rect.width, rect.height], {
     gravityCenter: [rect.width / 2, rect.height / 2],
     gravityForce: 0.05,
     charge: 800,

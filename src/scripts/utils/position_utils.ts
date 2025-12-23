@@ -1,4 +1,4 @@
-import { Coordinates, Vector } from '../types/position.types';
+import { Coordinates, Dimensions, Vector } from '../types/position.types';
 
 export function mapVector(
   vector: Vector,
@@ -12,4 +12,8 @@ export function mapCoordinates(
   mapper: (v: number) => number
 ): Coordinates {
   return coordinates.map(mapper) as Coordinates;
+}
+
+export function getCenter(dimensions: Dimensions): Coordinates {
+  return dimensions.map(v => v / 2) as Coordinates;
 }
