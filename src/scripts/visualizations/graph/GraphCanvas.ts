@@ -7,7 +7,7 @@ export default class GraphCanvas<TNodeData> {
   renderer: CanvasRenderer;
   config: GraphRenderConfig;
 
-  private raf;
+  private raf: number;
 
   constructor(
     public graph: Graph<TNodeData>,
@@ -30,6 +30,15 @@ export default class GraphCanvas<TNodeData> {
       console.log('Data Change!');
       this.render();
     });
+  }
+
+  setConfigValue(
+    key: keyof GraphRenderConfig,
+    value: GraphRenderConfig[typeof key]
+  ) {
+    if (this.config[key] !== value) {
+      (this.config[key] as GraphRenderConfig[typeof key]) = value;
+    }
   }
 
   render() {
