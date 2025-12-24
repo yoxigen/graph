@@ -1,32 +1,40 @@
-import testData from '../../test_data/graph_test_data';
+import testData, { TestData } from '../../test_data/graph_test_data';
 import EventBus from '../utils/EventBus';
-import { GraphData } from '../visualizations/graph/Graph.types';
 
 class DataControls extends EventBus<{
-  data: GraphData;
+  data: TestData;
 }> {
+  private currentData: string;
+  private dataSelectEl: HTMLSelectElement;
+
   constructor() {
     super();
-
+    this.dataSelectEl = document.querySelector('#test_data');
+    this.dataSelectEl.addEventListener('change', () => {
+      this.setData(this.dataSelectEl.value);
+    });
     this.init();
   }
 
+  setData(dataId: string, notifyChange = true) {
+    if (dataId !== this.currentData) {
+      this.currentData = dataId;
+      this.dataSelectEl.value = dataId;
+      if (notifyChange) {
+        this.emit(
+          'data',
+          testData.find(({ id }) => id === dataId)
+        );
+      }
+    }
+  }
+
   init() {
-    const dataSelect = document.querySelector(
-      '#test_data'
-    ) as HTMLSelectElement;
-    testData.forEach(({ name }) => {
+    testData.forEach(({ name, id }) => {
       const option = document.createElement('option');
-      option.value = name;
+      option.value = id;
       option.textContent = name;
-      dataSelect.appendChild(option);
-    });
-    dataSelect.value = testData[0].name;
-    dataSelect.addEventListener('change', () => {
-      this.emit(
-        'data',
-        testData.find(({ name }) => name === dataSelect.value)!.data
-      );
+      this.dataSelectEl.appendChild(option);
     });
   }
 }

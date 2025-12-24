@@ -1,4 +1,5 @@
 import type { Coordinates, Vector } from '../../types/position.types';
+import { QuadTreeElement } from '../../utils/QuadTree';
 import { GraphLink } from './GraphLink';
 import GraphNode from './GraphNode';
 
@@ -14,8 +15,8 @@ export function getGravityForce(
 }
 
 export function getForceBetweenNodes(
-  { position: pos1 }: GraphNode,
-  { position: pos2 }: GraphNode,
+  { position: pos1 }: QuadTreeElement,
+  { position: pos2 }: QuadTreeElement,
   charge: number,
   minDistance = 0
 ): Vector {

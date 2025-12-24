@@ -59,7 +59,10 @@ export default class GraphCanvas<TNodeData> {
 
       step();
     } else {
+      const start = performance.now();
+
       while (!generator.next().done);
+      console.log('TIME: ', performance.now() - start);
       this.draw();
     }
   }

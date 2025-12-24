@@ -40,4 +40,6 @@ export type GraphConfig = {
   alphaMin: number;
   alphaTarget: number;
   randomizePositions: boolean;
+  theta: number;
+  useQuadtree: boolean;
 };

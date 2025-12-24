@@ -8,7 +8,7 @@ const graphControls: ControlsConfig<GraphConfig> = [
     label: 'Charge',
     attr: {
       min: 0,
-      max: 15000,
+      max: 1500,
       step: 50,
     },
     defaultValue: 500,
@@ -25,6 +25,68 @@ const graphControls: ControlsConfig<GraphConfig> = [
     },
     defaultValue: 0.01,
     isStructural: true,
+  },
+  {
+    key: 'minEnergy',
+    type: 'range',
+    label: 'Minumum energy',
+    attr: {
+      min: 0,
+      max: 10,
+      step: 0.01,
+    },
+    defaultValue: 0.2,
+    isStructural: true,
+  },
+  {
+    key: 'linkLength',
+    type: 'range',
+    label: 'Link length',
+    attr: {
+      min: 2,
+      max: 100,
+      step: 1,
+    },
+    defaultValue: 15,
+    isStructural: true,
+  },
+  {
+    key: 'warmupIterations',
+    type: 'range',
+    label: 'Warmup iterations',
+    attr: {
+      min: 0,
+      max: 150,
+      step: 1,
+    },
+    defaultValue: 0,
+    isStructural: true,
+  },
+  {
+    key: 'randomizePositions',
+    type: 'checkbox',
+    label: 'Randomize positions',
+    defaultValue: false,
+  },
+  {
+    key: 'useQuadtree',
+    type: 'checkbox',
+    label: 'Use quadtree',
+    defaultValue: true,
+  },
+  {
+    key: 'theta',
+    type: 'range',
+    label: 'Theta',
+    attr: {
+      min: 0,
+      max: 2,
+      step: 0.01,
+      snap: '1',
+    },
+    defaultValue: 1,
+    isStructural: true,
+    show: ({ useQuadtree }) => useQuadtree,
   },
 ];
 

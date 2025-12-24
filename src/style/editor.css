@@ -9,9 +9,10 @@
   left: 0;
   width: 200px;
   overflow-y: auto;
+  padding: 16px var(--horizontal-padding);
 }
 #controls {
-  padding: 16px var(--horizontal-padding);
+  margin: 24px 0;
 }
 
 #size_controls {

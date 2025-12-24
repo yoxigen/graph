@@ -5,14 +5,18 @@ import { ID } from '../scripts/types/general.types';
 import { GraphData } from '../scripts/visualizations/graph/Graph.types';
 import { GraphLinkData } from '../scripts/visualizations/graph/Graph.vis';
 
-const testData: {
+export type TestData = {
+  id: string;
   name: string;
   data: GraphData<{ id: ID; group: string | number }>;
-}[] = [
-  { name: 'Les Miserables', data: miserables },
-  { name: 'Essays', data: essays },
-  { name: 'Simple data', data: simple },
-].map(({ name, data }) => ({
+};
+
+const testData: TestData[] = [
+  { id: 'les_miserables', name: 'Les Miserables', data: miserables },
+  { id: 'essays', name: 'Essays', data: essays },
+  { id: 'simple', name: 'Simple data', data: simple },
+].map(({ id, name, data }) => ({
+  id,
   name,
   data: { nodes: data.nodes, links: getLinksForNodes(data) },
 }));
