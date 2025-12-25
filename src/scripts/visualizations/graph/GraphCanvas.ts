@@ -3,11 +3,14 @@ import { getValue } from '../../utils/config_utils';
 import { GRAPH_RENDER_CONFIG_DEFAULTS, GraphRenderConfig } from './Graph.types';
 import Graph from './Graph.vis';
 
+let lastRenderId = 0;
+
 export default class GraphCanvas<TNodeData> {
   renderer: CanvasRenderer;
   config: GraphRenderConfig;
 
   private raf: number;
+  private currentRenderId: number;
 
   constructor(
     public graph: Graph<TNodeData>,
@@ -42,18 +45,28 @@ export default class GraphCanvas<TNodeData> {
   }
 
   render() {
-    console.log('RENDER!', this.graph);
+    const renderId = lastRenderId++;
+    this.currentRenderId = renderId;
     cancelAnimationFrame(this.raf);
+
     const generator = this.graph.generate();
 
     if (this.config.animate) {
       const step = () => {
+        if (renderId !== this.currentRenderId) {
+          console.warn(
+            `renderId ${renderId} is not this.currentRenderId = ${this.currentRenderId}`
+          );
+          return;
+        }
         const result = generator.next();
         this.draw();
         if (!result.done) {
           this.raf = requestAnimationFrame(step);
         } else {
           console.log('DONE');
+          this.currentRenderId = null;
+          this.raf = null;
         }
       };
 
@@ -62,7 +75,6 @@ export default class GraphCanvas<TNodeData> {
       const start = performance.now();
 
       while (!generator.next().done);
-      console.log('TIME: ', performance.now() - start);
       this.draw();
     }
   }

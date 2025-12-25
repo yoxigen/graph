@@ -4,10 +4,7 @@ import {
   WeightedCenter,
 } from '../../types/position.types';
 import EventBus from '../../utils/EventBus';
-import {
-  getDistanceBetweenCoordinates,
-  mapCoordinates,
-} from '../../utils/position_utils';
+import { getDistanceBetweenCoordinates } from '../../utils/position_utils';
 import QuadTree from '../../utils/QuadTree';
 import { GraphConfig, GraphData } from './Graph.types';
 import {
@@ -51,6 +48,7 @@ export default class Graph<TNodeData> extends EventBus<{
     alphaDecay: 0.017,
     alphaTarget: 0,
     randomizePositions: false,
+    minQuadSize: 3,
     theta: 1,
     useQuadtree: false,
   };
@@ -88,8 +86,8 @@ export default class Graph<TNodeData> extends EventBus<{
       // Initialize the nodes in the center of the graph and give each of them an initial random velocity, to kick things off
       this.nodes.forEach(node => {
         node.position = [
-          this.gravityCenter[0] + (Math.random() - 0.5) * 10,
-          this.gravityCenter[1] + (Math.random() - 0.5) * 10,
+          this.gravityCenter[0] + (Math.random() - 0.5) * 80,
+          this.gravityCenter[1] + (Math.random() - 0.5) * 80,
         ];
       });
     } else {
@@ -141,12 +139,10 @@ export default class Graph<TNodeData> extends EventBus<{
       }
 
       if (notifyChange) {
-        this.alpha = 0;
-        this.isGenerating = false;
+        this.alpha = 1;
         this.emit('configChange', {
           [key]: value,
         });
-        this.alpha = 1;
       }
 
       return true;
@@ -172,13 +168,13 @@ export default class Graph<TNodeData> extends EventBus<{
     }
 
     if (changed) {
-      this.isGenerating = false;
-      this.emit('configChange', changedConfig);
       this.alpha = 1;
+      this.emit('configChange', changedConfig);
     }
   }
 
   *generate(): Generator<number> {
+    console.log('start generate');
     this.isGenerating = true;
     const allowWarmup = !this.isInit;
 
@@ -229,7 +225,7 @@ export default class Graph<TNodeData> extends EventBus<{
   ): Generator<WeightedCenter> {
     const wc = quadTree.getWeightedCenter();
     if (
-      quadTree.dimensions[0] / getDistanceBetweenCoordinates(wc.center, p) <
+      quadTree.width / getDistanceBetweenCoordinates(wc.center, p) <
       this.config.theta
     ) {
       // Long distance, use the weighed center
@@ -241,7 +237,7 @@ export default class Graph<TNodeData> extends EventBus<{
           yield { center: el.position, weight: 1 };
         }
       } else {
-        for (const child of quadTree.children) {
+        for (const child of quadTree.children.values()) {
           if (child.weight) {
             yield* this.generateForceCoordinates(p, child);
           }
@@ -302,7 +298,7 @@ export default class Graph<TNodeData> extends EventBus<{
       }
     }
 
-    console.log('complexity', complexity);
+    //console.log('complexity', complexity);
     // Links:
     this.links.forEach(link => {
       const force = getLinkForce(

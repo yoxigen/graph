@@ -75,6 +75,19 @@ const graphControls: ControlsConfig<GraphConfig> = [
     defaultValue: true,
   },
   {
+    key: 'minQuadSize',
+    type: 'range',
+    label: 'Min quad size',
+    attr: {
+      min: 0,
+      max: 50,
+      step: 1,
+    },
+    defaultValue: 1,
+    isStructural: true,
+    show: ({ useQuadtree }) => useQuadtree,
+  },
+  {
     key: 'theta',
     type: 'range',
     label: 'Theta',

@@ -64,7 +64,7 @@ function main() {
     nodeRadius: 4,
     nodeColor: (node: GraphNode<typeof data.nodes[number]>) =>
       colors[groupsMap.get(node.data.group)],
-    animate: true,
+    animate: false,
   });
   canvasGraph.render();
 

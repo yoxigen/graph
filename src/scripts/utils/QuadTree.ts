@@ -3,31 +3,44 @@ import {
   Dimensions,
   WeightedCenter,
 } from '../types/position.types';
-import { createArray } from './array_utils';
-import { getCenter } from './position_utils';
 
 export interface QuadTreeElement {
   position: Coordinates;
 }
 
+export type QuadTreeOptions = {
+  maxElementsPerQuad: number;
+  position: Coordinates;
+  depth: number;
+  minChildWidth: number;
+};
+
+const DEFAULT_OPTIONS: QuadTreeOptions = {
+  maxElementsPerQuad: 4,
+  position: [0, 0],
+  depth: 0,
+  minChildWidth: 1,
+};
+
 export default class QuadTree {
   elements: QuadTreeElement[];
-  children: QuadTree[];
-  readonly dimensions: Dimensions;
-
+  children: Map<number, QuadTree>;
+  readonly width: number;
+  readonly options: QuadTreeOptions;
+  private childWidth: number;
   private center: Coordinates;
   private weightedCenter: WeightedCenter;
+  private isMaxDepth: boolean;
+
   #weight: number;
 
   constructor(
     dimensions: Dimensions,
     elements?: QuadTreeElement[],
-    public readonly maxElementsPerQuad = 4,
-    public readonly position: Coordinates = [0, 0], // The top-left corner of the Quad
-    public readonly id = 0
+    options: Partial<QuadTreeOptions> = {}
   ) {
-    const maxDimension = Math.max(...dimensions);
-    this.dimensions = [maxDimension, maxDimension];
+    this.options = Object.assign({}, DEFAULT_OPTIONS, options);
+    this.width = Math.max(...dimensions);
 
     if (elements) {
       this.add(...elements);
@@ -36,11 +49,14 @@ export default class QuadTree {
 
   get weight(): number {
     if (this.#weight == null) {
-      this.#weight = this.elements
-        ? this.elements.length
-        : this.children
-        ? this.children.reduce((total, child) => total + child.weight, 0)
-        : 0;
+      if (this.elements) {
+        this.#weight = this.elements.length;
+      } else if (this.children) {
+        this.#weight = 0;
+        this.children.forEach(child => (this.#weight += child.weight));
+      } else {
+        this.#weight = 0;
+      }
     }
 
     return this.#weight;
@@ -48,15 +64,23 @@ export default class QuadTree {
 
   add(...elements: QuadTreeElement[]) {
     if (
-      !this.children &&
-      (this.elements?.length || 0) + elements.length <= this.maxElementsPerQuad
+      this.isMaxDepth ||
+      (!this.children &&
+        (this.elements?.length || 0) + elements.length <=
+          this.options.maxElementsPerQuad)
     ) {
       this.elements = this.elements ? this.elements.concat(elements) : elements;
     } else {
       if (!this.children) {
         this.split();
       }
-      elements.forEach(element => this.addElementToZone(element));
+      if (this.isMaxDepth) {
+        this.elements = this.elements
+          ? this.elements.concat(elements)
+          : elements;
+      } else {
+        elements.forEach(element => this.addElementToZone(element));
+      }
     }
   }
 
@@ -65,11 +89,25 @@ export default class QuadTree {
       return null;
     }
 
+    let zone: number;
     if (position[0] < this.center[0]) {
-      return position[1] < this.center[1] ? this.children[0] : this.children[3];
+      zone = position[1] < this.center[1] ? 0 : 3;
     } else {
-      return position[1] < this.center[1] ? this.children[1] : this.children[2];
+      zone = position[1] < this.center[1] ? 1 : 2;
     }
+
+    if (!this.children.has(zone)) {
+      this.children.set(
+        zone,
+        new QuadTree([this.childWidth, this.childWidth], null, {
+          ...this.options,
+          position: this.getPositionForZone(zone),
+          depth: this.options.depth + 1,
+        })
+      );
+    }
+
+    return this.children.get(zone);
   }
 
   private addElementToZone(element: QuadTreeElement) {
@@ -81,42 +119,33 @@ export default class QuadTree {
   }
 
   private split() {
-    const halfSize = getCenter(this.dimensions);
-    this.center = [
-      this.position[0] + halfSize[0],
-      this.position[1] + halfSize[1],
-    ];
+    this.childWidth = this.width / 2;
+    if (this.childWidth < this.options.minChildWidth) {
+      this.isMaxDepth = true;
+    } else {
+      this.center = this.options.position.map(
+        v => v + this.childWidth
+      ) as Coordinates;
 
-    this.children = createArray(
-      4,
-      i =>
-        new QuadTree(
-          halfSize,
-          null,
-          this.maxElementsPerQuad,
-          this.getPositionForZone(i, halfSize),
-          this.id + i + 1
-        )
-    );
-    if (this.elements) {
-      this.elements.forEach(element => this.addElementToZone(element));
-      this.elements = null;
+      this.children = new Map();
+
+      if (this.elements) {
+        this.elements.forEach(element => this.addElementToZone(element));
+        this.elements = null;
+      }
     }
   }
 
-  private getPositionForZone(
-    zoneIndex: number,
-    halfSize: Dimensions
-  ): Coordinates {
+  private getPositionForZone(zoneIndex: number): Coordinates {
     switch (zoneIndex) {
       case 0:
-        return this.position;
+        return this.options.position;
       case 1:
-        return [this.position[0] + halfSize[0], this.position[1]];
+        return [this.center[0], this.options.position[1]];
       case 2:
-        return [this.position[0] + halfSize[0], this.position[1] + halfSize[1]];
+        return [this.center[0], this.center[1]];
       case 3:
-        return [this.position[0], this.position[1] + halfSize[1]];
+        return [this.options.position[0], this.center[1]];
       default:
         throw new Error(`Invalid zone index, ${zoneIndex}.`);
     }
@@ -152,34 +181,30 @@ export default class QuadTree {
           weight: this.elements.length,
         };
       } else {
-        if (!this.children) {
-          return { center: [0, 0], weight: 0 };
-        }
-        const combined = this.children.reduce(
-          (wc: WeightedCenter, child: QuadTree) => {
+        let wc: WeightedCenter = { center: [0, 0], weight: 0 };
+
+        if (this.children) {
+          this.children.forEach(child => {
             const { center: childCenter, weight: childWeight } =
               child.getWeightedCenter();
-            if (!childWeight) {
-              return wc;
+            if (childWeight) {
+              wc = {
+                weight: wc.weight + childWeight,
+                center: [
+                  wc.center[0] + childCenter[0] * childWeight,
+                  wc.center[1] + childCenter[1] * childWeight,
+                ],
+              };
             }
-            return {
-              weight: wc.weight + childWeight,
-              center: [
-                wc.center[0] + childCenter[0] * childWeight,
-                wc.center[1] + childCenter[1] * childWeight,
-              ],
-            };
-          },
-          { center: [0, 0], weight: 0 }
-        );
+          });
 
-        this.weightedCenter = {
-          center: [
-            combined.center[0] / combined.weight,
-            combined.center[1] / combined.weight,
-          ],
-          weight: combined.weight,
-        };
+          this.weightedCenter = {
+            center: [wc.center[0] / wc.weight, wc.center[1] / wc.weight],
+            weight: wc.weight,
+          };
+        } else {
+          this.weightedCenter = wc;
+        }
       }
     }
     return this.weightedCenter;
