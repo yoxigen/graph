@@ -1,7 +1,5 @@
 import { ValueOrFunction } from '../../types/general.types';
 import { Coordinates } from '../../types/position.types';
-import { GraphLinkData } from './Graph.vis';
-import GraphNode from './GraphNode';
 
 export type GraphRenderConfig<TNodeData = Object> = {
   nodeRadius: number;
@@ -9,16 +7,23 @@ export type GraphRenderConfig<TNodeData = Object> = {
   linkColor: string;
   warmupIterations: number;
   animate: boolean;
-  nodeColor: ValueOrFunction<string, GraphNode<TNodeData>>;
+  nodeColor?: string;
+  nodeColorDimension?: keyof TNodeData;
 };
 
 export const GRAPH_RENDER_CONFIG_DEFAULTS: GraphRenderConfig = {
-  nodeRadius: 5,
-  linkWidth: 1.5,
-  linkColor: 'red',
+  nodeRadius: 4,
+  linkWidth: 1,
+  linkColor: '#a9a9a9',
   warmupIterations: 50,
   animate: true,
   nodeColor: 'black',
+  nodeColorDimension: null,
+};
+
+export type GraphLinkData = {
+  source: number;
+  target: number;
 };
 
 export type GraphData<TNodeData = Object> = {
@@ -44,3 +49,5 @@ export type GraphConfig = {
   theta: number;
   minQuadSize: number;
 };
+
+export type GraphMessageType = 'init' | 'config';

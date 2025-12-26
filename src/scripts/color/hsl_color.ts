@@ -1,3 +1,4 @@
+import { ColorValue } from '../types/color.types';
 import { createArray } from '../utils/array_utils';
 
 export function getHSLColors({
@@ -12,7 +13,7 @@ export function getHSLColors({
   hueEnd?: number;
   lightness?: number;
   saturation?: number;
-}): string[] {
+}): ColorValue[] {
   const hueStep = Math.floor(
     Math.abs(hueEnd ?? hueStart + 360 - hueStart) / count
   );

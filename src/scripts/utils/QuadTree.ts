@@ -3,10 +3,7 @@ import {
   Dimensions,
   WeightedCenter,
 } from '../types/position.types';
-
-export interface QuadTreeElement {
-  position: Coordinates;
-}
+import GraphPositions from '../visualizations/graph/Graph.positions';
 
 export type QuadTreeOptions = {
   maxElementsPerQuad: number;
@@ -23,7 +20,7 @@ const DEFAULT_OPTIONS: QuadTreeOptions = {
 };
 
 export default class QuadTree {
-  elements: QuadTreeElement[];
+  elements: Coordinates[];
   children: Map<number, QuadTree>;
   readonly width: number;
   readonly options: QuadTreeOptions;
@@ -36,14 +33,14 @@ export default class QuadTree {
 
   constructor(
     dimensions: Dimensions,
-    elements?: QuadTreeElement[],
+    positions?: GraphPositions,
     options: Partial<QuadTreeOptions> = {}
   ) {
     this.options = Object.assign({}, DEFAULT_OPTIONS, options);
     this.width = Math.max(...dimensions);
 
-    if (elements) {
-      this.add(...elements);
+    if (positions) {
+      this.add(...positions.toCoordinates());
     }
   }
 
@@ -62,24 +59,26 @@ export default class QuadTree {
     return this.#weight;
   }
 
-  add(...elements: QuadTreeElement[]) {
+  add(...coordinates: Coordinates[]) {
     if (
       this.isMaxDepth ||
       (!this.children &&
-        (this.elements?.length || 0) + elements.length <=
+        (this.elements?.length || 0) + coordinates.length <=
           this.options.maxElementsPerQuad)
     ) {
-      this.elements = this.elements ? this.elements.concat(elements) : elements;
+      this.elements = this.elements
+        ? this.elements.concat(coordinates)
+        : coordinates;
     } else {
       if (!this.children) {
         this.split();
       }
       if (this.isMaxDepth) {
         this.elements = this.elements
-          ? this.elements.concat(elements)
-          : elements;
+          ? this.elements.concat(coordinates)
+          : coordinates;
       } else {
-        elements.forEach(element => this.addElementToZone(element));
+        coordinates.forEach(element => this.addElementToZone(element));
       }
     }
   }
@@ -110,9 +109,9 @@ export default class QuadTree {
     return this.children.get(zone);
   }
 
-  private addElementToZone(element: QuadTreeElement) {
+  private addElementToZone(element: Coordinates) {
     // 1. Fine the appropriate zone
-    const zone = this.getZoneAtPosition(element.position);
+    const zone = this.getZoneAtPosition(element);
 
     // 2. add the element to the found zone
     zone.add(element);
@@ -171,9 +170,9 @@ export default class QuadTree {
         this.weightedCenter = {
           center: this.elements
             .reduce(
-              (avg: Coordinates, element: QuadTreeElement) => [
-                avg[0] + element.position[0],
-                avg[1] + element.position[1],
+              (avg: Coordinates, element: Coordinates) => [
+                avg[0] + element[0],
+                avg[1] + element[1],
               ],
               [0, 0]
             )

@@ -11,11 +11,6 @@ import type {
   PrimitiveValue,
 } from '../types/config.types';
 
-const elements = {
-  controls: document.querySelector('#controls') as HTMLElement,
-  controlsPanel: document.querySelector('#controls_panel') as HTMLElement,
-};
-
 const STATE_LOCAL_STORAGE_KEY = 'controls_state';
 const RANGE_SCROLL_LOCK_TIMEOUT = 120;
 
@@ -63,8 +58,8 @@ export default class EditorControls<
   config: TConfig;
   controlsConfig: ControlsConfig<TConfig>;
   state: EditorState;
+  controlsElement: HTMLDivElement;
   controlElements: Partial<Record<keyof TConfig, Control<TConfig>>> = {};
-
   #postponeRangeInput: boolean = false;
   #postponeRangeInputTimeout: number;
   #wrappedOnInput;
@@ -77,35 +72,43 @@ export default class EditorControls<
   #lockRange: boolean = false;
   #boundToggleFieldset;
 
-  constructor(controlsConfig: ControlsConfig<TConfig>, config: TConfig) {
+  constructor(
+    public parentElement: HTMLElement,
+    controlsConfig: ControlsConfig<TConfig>,
+    config: TConfig
+  ) {
     super();
+
+    this.controlsElement = document.createElement('div');
+    this.controlsElement.classList.add('controls');
+    parentElement.appendChild(this.controlsElement);
 
     this.config = config;
     this.controlsConfig = controlsConfig;
     this.state = this._getState() ?? { groups: {} };
 
     this.#wrappedOnInput = this.#onInput.bind(this);
-    elements.controls.addEventListener('input', this.#wrappedOnInput);
+    this.controlsElement.addEventListener('input', this.#wrappedOnInput);
     this.#wrappedOnTouchStart = this.#onTouchStart.bind(this);
-    elements.controls.addEventListener(
+    this.controlsElement.addEventListener(
       'touchstart',
       this.#wrappedOnTouchStart,
       { passive: true }
     );
-    elements.controls.addEventListener('mousedown', this.#onMouseDown);
+    this.controlsElement.addEventListener('mousedown', this.#onMouseDown);
     this.#boundToggleFieldset = this.#toggleFieldset.bind(this);
     this.controlElements = {};
     this.renderControls();
   }
 
   destroy() {
-    elements.controls.removeEventListener('input', this.#wrappedOnInput);
-    elements.controls.removeEventListener(
+    this.controlsElement.removeEventListener('input', this.#wrappedOnInput);
+    this.controlsElement.removeEventListener(
       'touchstart',
       this.#wrappedOnTouchStart
     );
-    elements.controls.removeEventListener('mousedown', this.#onMouseDown);
-    elements.controls.innerHTML = '';
+    this.controlsElement.removeEventListener('mousedown', this.#onMouseDown);
+    this.controlsElement.innerHTML = '';
   }
 
   #toggleFieldset(this: EditorControls<TConfig>, e) {
@@ -156,16 +159,13 @@ export default class EditorControls<
         passive: true,
       });
       this.#wrappedOnRangeScroll = this.#onRangeScroll.bind(this);
-      elements.controlsPanel.addEventListener(
-        'scroll',
-        this.#wrappedOnRangeScroll
-      );
+      this.parentElement.addEventListener('scroll', this.#wrappedOnRangeScroll);
     }
   }
 
   #onTouchEnd(this: EditorControls<TConfig>) {
     document.body.removeEventListener('touchend', this.#wrappedOnTouchEnd);
-    elements.controlsPanel.removeEventListener(
+    this.parentElement.removeEventListener(
       'scroll',
       this.#wrappedOnRangeScroll
     );
@@ -381,7 +381,7 @@ export default class EditorControls<
   }
 
   renderControls(
-    containerEl: HTMLElement | undefined = elements.controls,
+    containerEl: HTMLElement | undefined = this.controlsElement,
     _controlsConfig?: ControlsConfig<TConfig>,
     indexStart?: number
   ) {
@@ -510,7 +510,7 @@ export default class EditorControls<
   }
 
   updateGroupsState() {
-    const groups = elements.controls.querySelectorAll('[data-group]');
+    const groups = this.controlsElement.querySelectorAll('[data-group]');
     groups.forEach(groupEl => {
       if (groupEl instanceof HTMLFieldSetElement) {
         const groupId = groupEl.dataset.group;

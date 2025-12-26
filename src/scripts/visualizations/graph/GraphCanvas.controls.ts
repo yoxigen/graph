@@ -1,7 +1,8 @@
+import { TestNodeData } from '../../../test_data/graph_test_data';
 import { ControlsConfig } from '../../types/config.types';
 import { GraphRenderConfig } from './Graph.types';
 
-const graphRenderControls: ControlsConfig<GraphRenderConfig> = [
+const graphRenderControls: ControlsConfig<GraphRenderConfig<TestNodeData>> = [
   {
     key: 'nodeRadius',
     type: 'range',
@@ -20,6 +21,11 @@ const graphRenderControls: ControlsConfig<GraphRenderConfig> = [
     label: 'Animate',
     defaultValue: true,
     isStructural: false,
+  },
+  {
+    key: 'linkColor',
+    type: 'color',
+    label: 'Link color',
   },
 ];
 

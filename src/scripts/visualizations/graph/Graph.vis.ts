@@ -1,38 +1,37 @@
 import {
   Coordinates,
   Dimensions,
+  Vector,
   WeightedCenter,
 } from '../../types/position.types';
+import CoordinatesList from '../../utils/CoordinatesList';
 import EventBus from '../../utils/EventBus';
 import { getDistanceBetweenCoordinates } from '../../utils/position_utils';
 import QuadTree from '../../utils/QuadTree';
+import GraphPositions from './Graph.positions';
 import { GraphConfig, GraphData } from './Graph.types';
 import {
   getForceBetweenNodes,
   getGravityForce,
   getLinkForce,
 } from './graph_utils';
-import type { GraphLink } from './GraphLink';
-import GraphNode from './GraphNode';
-
-export type GraphLinkData = {
-  from: number;
-  to: number;
-};
 
 export default class Graph<TNodeData> extends EventBus<{
   configChange: Partial<GraphConfig>;
-  dataChange: void;
+  dataChange: GraphData<TNodeData>;
+  reset: null;
 }> {
-  nodes: GraphNode<TNodeData>[];
-  links: GraphLink<TNodeData>[];
+  data: GraphData<TNodeData>;
   config: GraphConfig;
   isGenerating: boolean;
+  positions: GraphPositions;
+  velocities: CoordinatesList;
 
   private isInit = false;
   private alpha: number;
   quadTree: QuadTree;
   gravityCenter: Coordinates;
+  private worker: Worker;
 
   static defaultConfig: GraphConfig = {
     charge: 500,
@@ -67,6 +66,10 @@ export default class Graph<TNodeData> extends EventBus<{
     }
   }
 
+  get nodesCount(): number {
+    return this.data?.nodes.length ?? 0;
+  }
+
   #setGravityCenter() {
     this.gravityCenter = [
       this.size[0] * this.config.gravityCenter[0],
@@ -78,53 +81,26 @@ export default class Graph<TNodeData> extends EventBus<{
     this.alpha = 1;
     this.isInit = false;
     this.quadTree = null;
-    this.emit('dataChange', null);
+    this.emit('reset', null);
   }
 
-  #init() {
-    if (this.config.randomizePositions) {
-      // Initialize the nodes in the center of the graph and give each of them an initial random velocity, to kick things off
-      this.nodes.forEach(node => {
-        node.position = [
-          this.gravityCenter[0] + (Math.random() - 0.5) * 80,
-          this.gravityCenter[1] + (Math.random() - 0.5) * 80,
-        ];
-      });
-    } else {
-      const angle = (Math.PI * 2) / this.nodes.length;
-      this.nodes.forEach((node, i) => {
-        node.position = [
-          this.gravityCenter[0] + 50 * Math.cos(angle * i),
-          this.gravityCenter[1] + 50 * Math.sin(angle * i),
-        ];
-      });
-    }
-
+  private initPositions() {
+    this.positions = new GraphPositions({
+      size: this.nodesCount,
+      randomizeInitialPositions: this.config.randomizePositions,
+      gravityCenter: this.gravityCenter,
+    });
+    this.velocities = new CoordinatesList(this.nodesCount);
     this.isInit = true;
   }
 
-  setData({ nodes, links }: GraphData<TNodeData>) {
-    const isDataChange = !!this.nodes;
-
-    this.nodes = nodes.map(d => new GraphNode(d));
-    this.links = (links ?? [])
-      .map(({ from, to }) =>
-        from >= this.nodes.length || to >= this.nodes.length
-          ? null
-          : {
-              source: this.nodes[from],
-              target: this.nodes[to],
-            }
-      )
-      .filter(Boolean);
+  setData(data: GraphData<TNodeData>) {
+    this.data = data;
 
     this.alpha = 1;
     this.isInit = false;
     this.quadTree = null;
-
-    if (isDataChange) {
-      this.emit('dataChange', null);
-    }
+    this.emit('dataChange', data);
   }
 
   setConfigValue(
@@ -173,13 +149,31 @@ export default class Graph<TNodeData> extends EventBus<{
     }
   }
 
+  private initWorker() {
+    if (!this.worker) {
+      this.worker = new Worker(new URL('./Graph.worker.ts', import.meta.url), {
+        type: 'module',
+      });
+
+      this.worker.postMessage({
+        type: 'init',
+        options: {
+          config: this.config,
+          dimensions: this.size,
+          links: [1, 2, 3],
+          nodesCount: this.nodesCount,
+        },
+      });
+    }
+  }
+
   *generate(): Generator<number> {
-    console.log('start generate');
+    this.initWorker();
     this.isGenerating = true;
     const allowWarmup = !this.isInit;
 
     if (!this.isInit) {
-      this.#init();
+      this.initPositions();
     }
 
     let totalEnergy = Infinity;
@@ -194,12 +188,24 @@ export default class Graph<TNodeData> extends EventBus<{
 
       this.updateForces();
 
-      this.nodes.forEach(node => {
-        node.updatePosition(this.alpha);
-        if (node.energy > totalEnergy) {
-          totalEnergy = node.energy;
+      for (let nodeIndex = 0; nodeIndex < this.nodesCount; nodeIndex++) {
+        const velocityX = this.velocities.getX(nodeIndex) * this.alpha;
+        const velocityY = this.velocities.getY(nodeIndex) * this.alpha;
+
+        this.velocities.set(nodeIndex, velocityX, velocityY);
+
+        this.positions.set(
+          nodeIndex,
+          this.positions.getX(nodeIndex) + velocityX,
+          this.positions.getY(nodeIndex) + velocityY
+        );
+
+        const nodeEnergy = Math.hypot(velocityX, velocityY);
+
+        if (nodeEnergy > totalEnergy) {
+          totalEnergy = nodeEnergy;
         }
-      });
+      }
 
       this.alpha +=
         (this.config.alphaTarget - this.alpha) * this.config.alphaDecay;
@@ -210,7 +216,6 @@ export default class Graph<TNodeData> extends EventBus<{
       count++;
     }
 
-    console.log('TICKS', count);
     this.isGenerating = false;
   }
 
@@ -234,7 +239,7 @@ export default class Graph<TNodeData> extends EventBus<{
       // quadtree is near, get its inner forces
       if (quadTree.elements) {
         for (const el of quadTree.elements) {
-          yield { center: el.position, weight: 1 };
+          yield { center: el, weight: 1 };
         }
       } else {
         for (const child of quadTree.children.values()) {
@@ -246,68 +251,87 @@ export default class Graph<TNodeData> extends EventBus<{
     }
   }
 
+  private addForce(nodeIndex: number, force: Vector) {
+    if (!force) {
+      return;
+    }
+
+    this.velocities.set(
+      nodeIndex,
+      this.velocities.getX(nodeIndex) + force[0],
+      this.velocities.getY(nodeIndex) + force[1]
+    );
+  }
+
+  private subtractForce(nodeIndex: number, force: Vector) {
+    if (!force) {
+      return;
+    }
+
+    this.velocities.set(
+      nodeIndex,
+      this.velocities.getX(nodeIndex) - force[0],
+      this.velocities.getY(nodeIndex) - force[1]
+    );
+  }
+
   private updateForces() {
     let count = 0;
-    let complexity = 0;
 
     if (this.config.useQuadtree) {
-      this.quadTree = new QuadTree(this.size, this.nodes);
+      this.quadTree = new QuadTree(this.size, this.positions);
     }
 
     // Nodes gravity and repulsion between each other:
-    for (let i = 0; i < this.nodes.length; i++) {
-      const node = this.nodes[i];
+    for (let i = 0; i < this.nodesCount; i++) {
+      const nodePosition = this.positions.get(i);
+
       const gravityForce = getGravityForce(
-        node,
+        nodePosition,
         this.gravityCenter,
         this.config.gravityForce
       );
-      node.addForce(gravityForce);
-
+      this.addForce(i, gravityForce);
       if (this.config.useQuadtree) {
         const generateWeightedCenters = this.generateForceCoordinates(
-          node.position,
+          nodePosition,
           this.quadTree
         );
         for (const { center, weight } of generateWeightedCenters) {
-          complexity++;
           const force = getForceBetweenNodes(
-            node,
-            { position: center },
+            nodePosition,
+            center,
             this.config.charge * weight,
             this.config.minDistance
           );
-          node.addForce(force);
+          this.addForce(i, force);
           count++;
         }
       } else {
-        for (let j = i + 1; j < this.nodes.length; j++) {
-          complexity++;
-          const otherNode = this.nodes[j];
-
+        for (let j = i + 1; j < this.nodesCount; j++) {
           const force = getForceBetweenNodes(
-            node,
-            otherNode,
+            nodePosition,
+            this.positions.get(j),
             this.config.charge,
             this.config.minDistance
           );
-          node.addForce(force);
-          otherNode.subtractForce(force);
+          this.addForce(i, force);
+          this.subtractForce(j, force);
           count++;
         }
       }
     }
 
-    //console.log('complexity', complexity);
     // Links:
-    this.links.forEach(link => {
+    this.data.links.forEach(link => {
       const force = getLinkForce(
-        link,
+        this.positions.get(link.source),
+        this.positions.get(link.target),
         this.config.linkStrength,
         this.config.linkLength
       );
-      link.source.addForce(force);
-      link.target.subtractForce(force);
+      this.addForce(link.source, force);
+      this.subtractForce(link.target, force);
     });
   }
 }

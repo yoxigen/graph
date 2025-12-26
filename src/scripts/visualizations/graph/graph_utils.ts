@@ -1,30 +1,27 @@
 import type { Coordinates, Vector } from '../../types/position.types';
-import { QuadTreeElement } from '../../utils/QuadTree';
 import { GraphLink } from './GraphLink';
 import GraphNode from './GraphNode';
 
 export function getGravityForce(
-  node: GraphNode,
+  position: Coordinates,
   centerOfGravity: Coordinates,
   gravity: number
 ): Vector {
   return [
-    (centerOfGravity[0] - node.position[0]) * gravity,
-    (centerOfGravity[1] - node.position[1]) * gravity,
+    (centerOfGravity[0] - position[0]) * gravity,
+    (centerOfGravity[1] - position[1]) * gravity,
   ] as Vector;
 }
 
 export function getForceBetweenNodes(
-  { position: pos1 }: QuadTreeElement,
-  { position: pos2 }: QuadTreeElement,
+  pos1: Coordinates,
+  pos2: Coordinates,
   charge: number,
   minDistance = 0
 ): Vector {
-  // 1. Calculate the difference vector
   let dx = pos1[0] - pos2[0];
   let dy = pos1[1] - pos2[1];
 
-  // 2. Calculate distance squared first (cheaper than Math.sqrt)
   const distance = Math.max(minDistance, Math.hypot(dx, dy));
 
   // Formula: Force = Strength / distance squared
@@ -36,12 +33,13 @@ export function getForceBetweenNodes(
 }
 
 export function getLinkForce(
-  { source, target }: GraphLink,
+  sourceCoordinates: Coordinates,
+  targetCoordinates: Coordinates,
   linkStrength: number,
   linkLength: number
 ): Vector {
-  const dx = target.position[0] - source.position[0];
-  const dy = target.position[1] - source.position[1];
+  const dx = targetCoordinates[0] - sourceCoordinates[0];
+  const dy = targetCoordinates[1] - sourceCoordinates[1];
   const distance = Math.sqrt(dx * dx + dy * dy) || 0.0001; // Avoid division by zero
 
   // 2. Calculate the "displacement" from the rest length

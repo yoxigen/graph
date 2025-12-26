@@ -7,11 +7,11 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 200px;
+  width: 250px;
   overflow-y: auto;
   padding: 16px var(--horizontal-padding);
 }
-#controls {
+.controls {
   margin: 24px 0;
 }
 
@@ -34,7 +34,7 @@ expandable-panel .control:first-child {
   margin-top: 0;
 }
 
-#controls > .control:first-child {
+.controls > .control:first-child {
   margin-top: 0;
 }
 

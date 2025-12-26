@@ -2,13 +2,16 @@ import miserables from '../test_data/miserables.json';
 import essays from '../test_data/essays.json';
 import simple from '../test_data/simple';
 import { ID } from '../scripts/types/general.types';
-import { GraphData } from '../scripts/visualizations/graph/Graph.types';
-import { GraphLinkData } from '../scripts/visualizations/graph/Graph.vis';
+import {
+  GraphData,
+  GraphLinkData,
+} from '../scripts/visualizations/graph/Graph.types';
 
+export type TestNodeData = { id: ID; group: string | number };
 export type TestData = {
   id: string;
   name: string;
-  data: GraphData<{ id: ID; group: string | number }>;
+  data: GraphData<TestNodeData>;
 };
 
 const testData: TestData[] = [
@@ -31,8 +34,8 @@ function getLinksForNodes({
   const nodeIndexes = new Map<ID, number>();
   nodes.forEach(({ id }, i) => nodeIndexes.set(id, i));
   return links.map(link => ({
-    from: nodeIndexes.get(link.source),
-    to: nodeIndexes.get(link.target),
+    source: nodeIndexes.get(link.source),
+    target: nodeIndexes.get(link.target),
   }));
 }
 
