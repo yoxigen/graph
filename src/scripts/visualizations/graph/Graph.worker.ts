@@ -1,41 +1,59 @@
 /// <reference lib="webworker" />
 
-import { Dimensions } from '../../types/position.types';
-import { createArray } from '../../utils/array_utils';
-import { GraphConfig, GraphMessageType } from './Graph.types';
+import { WorkerGraphEvent, WorkerGraphInitEvent } from './Graph.types';
 import Graph from './Graph.vis';
-
-export type WorkerGraphOptions = {
-  links: ArrayBuffer;
-  nodesCount: number;
-  dimensions: Dimensions;
-  config: GraphConfig;
-};
-
-export type WorkerGraphEvent = {
-  type: 'init';
-  options: WorkerGraphOptions;
-};
 
 type WorkerGraphNodeData = { id: number };
 
 let graph: Graph<WorkerGraphNodeData>;
+self['isGraphWorker'] = true;
 
 self.onmessage = (e: MessageEvent<WorkerGraphEvent>) => {
   switch (e.data.type) {
     case 'init':
-      init(e.data.options);
+      init(e.data);
       break;
-    default:
-      throw new Error(`Invalid message type, "${e.data.type}!"`);
+    case 'setData':
+      graph.setData({
+        links: e.data.links,
+        nodes: new Array(e.data.nodesCount),
+      });
+      break;
+    case 'configChange':
+      graph.assignConfig(e.data.config);
+      break;
+    case 'start':
+      start();
+      break;
+    case 'setConfigValue':
+      graph.setConfigValue(e.data.key, e.data.value);
+      break;
   }
 };
 
-function init(options: WorkerGraphOptions) {
-  const nodes = createArray(options.nodesCount, id => ({
-    id,
-  }));
+function init(e: WorkerGraphInitEvent) {
+  if (graph) {
+    throw new Error('Graph worker already initialized!');
+  }
 
-  graph = new Graph(options.dimensions, options.config, { nodes, links: [] });
+  graph = new Graph(
+    e.dimensions,
+    { ...e.config, allowWorker: false },
+    {
+      nodes: new Array(e.nodesCount),
+      links: e.links,
+    }
+  );
+
+  graph.on('tick', () => {
+    this.postMessage({
+      type: 'tick',
+      positions: graph.positions.copy().buffer,
+    });
+  });
   console.log('GRAPH', graph);
+}
+
+function start() {
+  graph.start();
 }

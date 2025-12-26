@@ -2,19 +2,26 @@ import { Coordinates } from '../types/position.types';
 import { createArray } from './array_utils';
 
 export default class CoordinatesList {
-  private values: Float32Array;
+  private values: Float16Array;
   size: number;
 
   constructor(size?: number);
   constructor(values: Coordinates[]);
-  constructor(v: number | Coordinates[]) {
+  constructor(buffer: ArrayBuffer);
+  constructor(v: number | Coordinates[] | ArrayBuffer) {
     if (v instanceof Array) {
-      this.values = new Float32Array(v.length * 2);
+      this.values = new Float16Array(v.length * 2);
       v.forEach((pos, i) => this.set(i, pos[0], pos[1]));
+    } else if (v instanceof ArrayBuffer) {
+      this.values = new Float16Array(v);
     } else {
       this.size = v;
-      this.values = new Float32Array(this.size * 2);
+      this.values = new Float16Array(this.size * 2);
     }
+  }
+
+  copy(): Float16Array {
+    return new Float16Array(this.values);
   }
 
   getX(index: number): number {

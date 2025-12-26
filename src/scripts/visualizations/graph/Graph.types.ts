@@ -1,5 +1,4 @@
-import { ValueOrFunction } from '../../types/general.types';
-import { Coordinates } from '../../types/position.types';
+import { Coordinates, Dimensions } from '../../types/position.types';
 
 export type GraphRenderConfig<TNodeData = Object> = {
   nodeRadius: number;
@@ -48,6 +47,49 @@ export type GraphConfig = {
   useQuadtree: boolean;
   theta: number;
   minQuadSize: number;
+  allowWorker: boolean;
 };
 
 export type GraphMessageType = 'init' | 'config';
+
+export type WorkerGraphSetConfigValueEvent<TKey extends keyof GraphConfig> = {
+  type: 'setConfigValue';
+  key: TKey;
+  value: GraphConfig[TKey];
+};
+
+export type WorkerGraphInitEvent = {
+  type: 'init';
+  links: GraphLinkData[];
+  nodesCount: number;
+  dimensions: Dimensions;
+  config: GraphConfig;
+};
+
+export type WorkerGraphSetDataEvent = {
+  type: 'setData';
+  links: GraphLinkData[];
+  nodesCount: number;
+};
+
+export type WorkerGraphConfigChangeEvent = {
+  type: 'configChange';
+  config: Partial<GraphConfig>;
+};
+
+export type WorkerGraphStartEvent = {
+  type: 'start';
+};
+
+export type WorkerGraphEvent =
+  | WorkerGraphInitEvent
+  | WorkerGraphConfigChangeEvent
+  | WorkerGraphSetConfigValueEvent<any>
+  | WorkerGraphSetDataEvent
+  | WorkerGraphStartEvent;
+
+export type GraphTickEvent = {
+  type: 'tick';
+  positions: ArrayBuffer;
+};
+export type MessageEventFromWorker = GraphTickEvent;

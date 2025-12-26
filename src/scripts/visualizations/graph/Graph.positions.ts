@@ -21,10 +21,16 @@ const DEFAULT_GRAPH_POSITIONS_OPTIONS: GraphPositionsOptions = {
 };
 
 export default class GraphPositions extends CoordinatesList {
-  constructor(options: Partial<GraphPositionsOptions> = {}) {
-    super(options.positions?.length ?? options.size);
+  constructor(buffer: ArrayBuffer);
+  constructor(options: Partial<GraphPositionsOptions>);
 
-    this.init(Object.assign({}, DEFAULT_GRAPH_POSITIONS_OPTIONS, options));
+  constructor(v: ArrayBuffer | Partial<GraphPositionsOptions> = {}) {
+    if (v instanceof ArrayBuffer) {
+      super(v);
+    } else {
+      super(v.positions?.length ?? v.size);
+      this.init(Object.assign({}, DEFAULT_GRAPH_POSITIONS_OPTIONS, v));
+    }
   }
 
   init(options: GraphPositionsOptions) {

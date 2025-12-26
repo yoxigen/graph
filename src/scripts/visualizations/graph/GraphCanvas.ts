@@ -41,6 +41,14 @@ export default class GraphCanvas<TNodeData> {
     });
 
     graph.on('reset', () => this.render());
+    graph.on('tick', () => {
+      if (this.config.animate) {
+        cancelAnimationFrame(this.raf);
+        this.raf = requestAnimationFrame(() => this.draw());
+      } else {
+        this.draw();
+      }
+    });
 
     if (graph.data) {
       this.render();
@@ -77,37 +85,38 @@ export default class GraphCanvas<TNodeData> {
   }
 
   render() {
-    const renderId = lastRenderId++;
-    this.currentRenderId = renderId;
-    cancelAnimationFrame(this.raf);
-
-    const generator = this.graph.generate();
-
-    if (this.config.animate) {
-      const step = () => {
-        if (renderId !== this.currentRenderId) {
-          // Not in the current render loop, exit
-          return;
-        }
-        const result = generator.next();
-        this.draw();
-        if (!result.done) {
-          this.raf = requestAnimationFrame(step);
-        } else {
-          console.log('DONE');
-          this.currentRenderId = null;
-          this.raf = null;
-        }
-      };
-
-      step();
-    } else {
-      const start = performance.now();
-
-      while (!generator.next().done);
-      this.draw();
-      console.log('TIME', performance.now() - start);
+    if (!this.graph.isGenerating) {
+      this.graph.start();
     }
+    // const renderId = lastRenderId++;
+    // this.currentRenderId = renderId;
+    // cancelAnimationFrame(this.raf);
+
+    // if (this.config.animate) {
+    //   const step = () => {
+    //     if (renderId !== this.currentRenderId) {
+    //       // Not in the current render loop, exit
+    //       return;
+    //     }
+    //     const result = generator.next();
+    //     this.draw();
+    //     if (!result.done) {
+    //       this.raf = requestAnimationFrame(step);
+    //     } else {
+    //       console.log('DONE');
+    //       this.currentRenderId = null;
+    //       this.raf = null;
+    //     }
+    //   };
+
+    //   step();
+    // } else {
+    //   const start = performance.now();
+
+    //   while (!generator.next().done);
+    //   this.draw();
+    //   console.log('TIME', performance.now() - start);
+    // }
   }
 
   private draw() {

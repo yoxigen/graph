@@ -9,7 +9,14 @@ import EventBus from '../../utils/EventBus';
 import { getDistanceBetweenCoordinates } from '../../utils/position_utils';
 import QuadTree from '../../utils/QuadTree';
 import GraphPositions from './Graph.positions';
-import { GraphConfig, GraphData } from './Graph.types';
+import {
+  GraphConfig,
+  GraphData,
+  GraphTickEvent,
+  WorkerGraphInitEvent,
+  WorkerGraphSetConfigValueEvent,
+  WorkerGraphSetDataEvent,
+} from './Graph.types';
 import {
   getForceBetweenNodes,
   getGravityForce,
@@ -19,7 +26,10 @@ import {
 export default class Graph<TNodeData> extends EventBus<{
   configChange: Partial<GraphConfig>;
   dataChange: GraphData<TNodeData>;
-  reset: null;
+  reset: void;
+  tick: void;
+  start: void;
+  stop: void;
 }> {
   data: GraphData<TNodeData>;
   config: GraphConfig;
@@ -50,6 +60,7 @@ export default class Graph<TNodeData> extends EventBus<{
     minQuadSize: 3,
     theta: 1,
     useQuadtree: false,
+    allowWorker: true,
   };
 
   constructor(
@@ -100,6 +111,11 @@ export default class Graph<TNodeData> extends EventBus<{
     this.alpha = 1;
     this.isInit = false;
     this.quadTree = null;
+    this.worker?.postMessage({
+      type: 'setData',
+      links: data.links,
+      nodesCount: data.nodes.length,
+    } as WorkerGraphSetDataEvent);
     this.emit('dataChange', data);
   }
 
@@ -116,6 +132,11 @@ export default class Graph<TNodeData> extends EventBus<{
 
       if (notifyChange) {
         this.alpha = 1;
+        this.worker?.postMessage({
+          type: 'setConfigValue',
+          key,
+          value,
+        } as WorkerGraphSetConfigValueEvent<typeof key>);
         this.emit('configChange', {
           [key]: value,
         });
@@ -157,18 +178,36 @@ export default class Graph<TNodeData> extends EventBus<{
 
       this.worker.postMessage({
         type: 'init',
-        options: {
-          config: this.config,
-          dimensions: this.size,
-          links: [1, 2, 3],
-          nodesCount: this.nodesCount,
-        },
-      });
+        config: this.config,
+        dimensions: this.size,
+        links: this.data.links,
+        nodesCount: this.nodesCount,
+      } as WorkerGraphInitEvent);
+
+      this.worker.onmessage = (e: MessageEvent<GraphTickEvent>) =>
+        this.onWorkerMessage(e);
     }
   }
 
-  *generate(): Generator<number> {
-    this.initWorker();
+  private onWorkerMessage(e: MessageEvent<GraphTickEvent>) {
+    if (e.data.type === 'tick') {
+      this.positions = new GraphPositions(e.data.positions);
+      this.emit('tick', null);
+    }
+  }
+
+  start() {
+    if (this.isGenerating) {
+      return;
+    }
+
+    this.emit('start', null);
+    if (this.config.allowWorker && !self['isGraphWorker']) {
+      this.initWorker();
+      this.worker.postMessage({ type: 'start' });
+      return;
+    }
+
     this.isGenerating = true;
     const allowWarmup = !this.isInit;
 
@@ -211,12 +250,13 @@ export default class Graph<TNodeData> extends EventBus<{
         (this.config.alphaTarget - this.alpha) * this.config.alphaDecay;
 
       if (!allowWarmup || count >= this.config.warmupIterations) {
-        yield totalEnergy;
+        this.emit('tick', null);
       }
       count++;
     }
 
     this.isGenerating = false;
+    this.emit('stop', null);
   }
 
   /**
