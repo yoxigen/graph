@@ -42,12 +42,8 @@ export default class GraphCanvas<TNodeData> {
 
     graph.on('reset', () => this.render());
     graph.on('tick', () => {
-      if (this.config.animate) {
-        cancelAnimationFrame(this.raf);
-        this.raf = requestAnimationFrame(() => this.draw());
-      } else {
-        this.draw();
-      }
+      cancelAnimationFrame(this.raf);
+      this.raf = requestAnimationFrame(() => this.draw());
     });
 
     if (graph.data) {
@@ -124,12 +120,13 @@ export default class GraphCanvas<TNodeData> {
     this.renderer.setLineColor(this.config.linkColor);
     this.renderer.setLineWidth(this.config.linkWidth);
 
-    this.renderer.drawLines(
-      this.graph.data.links.map(link => [
+    this.graph.data.links.forEach(link => {
+      this.renderer.drawLine(
         this.graph.positions.get(link.source),
-        this.graph.positions.get(link.target),
-      ])
-    );
+        this.graph.positions.get(link.target)
+      );
+    });
+
     this.graph.data.nodes.forEach((node, i) =>
       this.renderer.drawCircle(
         this.graph.positions.get(i),

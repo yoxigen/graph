@@ -81,15 +81,25 @@ export type WorkerGraphStartEvent = {
   type: 'start';
 };
 
+export type WorkerGraphResetEvent = {
+  type: 'reset';
+};
+
 export type WorkerGraphEvent =
   | WorkerGraphInitEvent
   | WorkerGraphConfigChangeEvent
   | WorkerGraphSetConfigValueEvent<any>
   | WorkerGraphSetDataEvent
-  | WorkerGraphStartEvent;
+  | WorkerGraphStartEvent
+  | WorkerGraphResetEvent;
 
 export type GraphTickEvent = {
   type: 'tick';
   positions: ArrayBuffer;
 };
-export type MessageEventFromWorker = GraphTickEvent;
+
+export type GraphEndEvent = {
+  type: 'end';
+};
+
+export type MessageEventFromWorker = GraphTickEvent | GraphEndEvent;

@@ -20,6 +20,9 @@ export default class CoordinatesList {
     }
   }
 
+  get buffer(): ArrayBufferLike {
+    return this.values.buffer;
+  }
   copy(): Float16Array {
     return new Float16Array(this.values);
   }
