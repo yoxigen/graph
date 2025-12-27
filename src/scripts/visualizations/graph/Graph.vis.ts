@@ -211,7 +211,7 @@ export default class Graph<TNodeData> extends EventBus<{
 
   start() {
     if (!this.isWorker && !this.isGenerating) {
-      this.isGenerating = true;
+      //this.isGenerating = true;
       this.initWorker();
       console.log('start---');
       this.worker.postMessage({ type: 'start' });
@@ -253,11 +253,7 @@ export default class Graph<TNodeData> extends EventBus<{
 
         this.velocities.set(nodeIndex, velocityX, velocityY);
 
-        this.positions.set(
-          nodeIndex,
-          this.positions.getX(nodeIndex) + velocityX,
-          this.positions.getY(nodeIndex) + velocityY
-        );
+        this.positions.addVector(nodeIndex, velocityX, velocityY);
 
         const nodeEnergy = Math.hypot(velocityX, velocityY);
 
@@ -317,11 +313,7 @@ export default class Graph<TNodeData> extends EventBus<{
       return;
     }
 
-    this.velocities.set(
-      nodeIndex,
-      this.velocities.getX(nodeIndex) + force[0],
-      this.velocities.getY(nodeIndex) + force[1]
-    );
+    this.velocities.addVector(nodeIndex, ...force);
   }
 
   private subtractForce(nodeIndex: number, force: Vector) {
@@ -329,11 +321,7 @@ export default class Graph<TNodeData> extends EventBus<{
       return;
     }
 
-    this.velocities.set(
-      nodeIndex,
-      this.velocities.getX(nodeIndex) - force[0],
-      this.velocities.getY(nodeIndex) - force[1]
-    );
+    this.velocities.subtractVector(nodeIndex, ...force);
   }
 
   private updateForces() {

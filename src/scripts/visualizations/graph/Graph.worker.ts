@@ -94,7 +94,7 @@ function render() {
   currentRenderId = renderId;
   cancelAnimationFrame(raf);
 
-  const animate = false;
+  const animate = true;
   if (animate) {
     let lastTick: number;
 

@@ -40,7 +40,7 @@ export function getLinkForce(
 ): Vector {
   const dx = targetCoordinates[0] - sourceCoordinates[0];
   const dy = targetCoordinates[1] - sourceCoordinates[1];
-  const distance = Math.sqrt(dx * dx + dy * dy) || 0.0001; // Avoid division by zero
+  const distance = Math.hypot(dx, dy) || 0.0001; // Avoid division by zero
 
   // 2. Calculate the "displacement" from the rest length
   // positive = too far (pull), negative = too close (push)

@@ -1,4 +1,4 @@
-import { Coordinates } from '../types/position.types';
+import { Coordinates, Vector } from '../types/position.types';
 import { createArray } from './array_utils';
 
 export default class CoordinatesList {
@@ -42,6 +42,16 @@ export default class CoordinatesList {
   set(index: number, x: number, y: number) {
     this.values[index * 2] = x;
     this.values[index * 2 + 1] = y;
+  }
+
+  addVector(index: number, x: number, y: number) {
+    this.values[index * 2] += x;
+    this.values[index * 2 + 1] += y;
+  }
+
+  subtractVector(index: number, x: number, y: number) {
+    this.values[index * 2] -= x;
+    this.values[index * 2 + 1] -= y;
   }
 
   toCoordinates(): Coordinates[] {
