@@ -1,7 +1,6 @@
 import { getHSLColors } from '../../color/hsl_color';
 import CanvasRenderer from '../../renderers/CanvasRenderer';
 import { ColorValue } from '../../types/color.types';
-import { getValue } from '../../utils/config_utils';
 import { groupDimension } from '../../utils/data_utils';
 import {
   GRAPH_RENDER_CONFIG_DEFAULTS,
@@ -10,15 +9,13 @@ import {
 } from './Graph.types';
 import Graph from './Graph.vis';
 
-let lastRenderId = 0;
-
 export default class GraphCanvas<TNodeData> {
   renderer: CanvasRenderer;
   config: GraphRenderConfig<TNodeData>;
 
   private raf: number;
-  private currentRenderId: number;
   private getNodeColor: (nodeData: TNodeData) => ColorValue;
+  private selectedNodeIndex: number;
 
   constructor(
     public graph: Graph<TNodeData>,
@@ -49,6 +46,26 @@ export default class GraphCanvas<TNodeData> {
     if (graph.data) {
       this.render();
     }
+
+    const onMouseMove = (e: MouseEvent) => {
+      graph.fixNodePosition(this.selectedNodeIndex!, e.x, e.y);
+    };
+
+    this.renderer.element.addEventListener('pointerup', () => {
+      this.renderer.element.removeEventListener('pointermove', onMouseMove);
+      this.selectedNodeIndex = null;
+    });
+    this.renderer.element.addEventListener('pointerdown', e => {
+      const position = graph.selectNodeAt(e.x, e.y);
+      if (position) {
+        if (e.ctrlKey) {
+          graph.unfixNodePosition(position.index);
+        } else {
+          this.selectedNodeIndex = position.index;
+          this.renderer.element.addEventListener('pointermove', onMouseMove);
+        }
+      }
+    });
   }
 
   private setNodeColors() {
@@ -127,12 +144,20 @@ export default class GraphCanvas<TNodeData> {
       );
     });
 
-    this.graph.data.nodes.forEach((node, i) =>
+    this.renderer.setLineWidth(3);
+    this.graph.data.nodes.forEach((node, i) => {
+      this.renderer.setLineColor(
+        i === this.selectedNodeIndex ? 'black' : 'white'
+      );
+
+      const position = this.graph.positions.get(i);
       this.renderer.drawCircle(
-        this.graph.positions.get(i),
+        position,
+        //Math.max(node.radius ?? this.config.nodeRadius),
         this.config.nodeRadius,
-        this.getNodeColor(node)
-      )
-    );
+        this.getNodeColor(node),
+        true
+      );
+    });
   }
 }

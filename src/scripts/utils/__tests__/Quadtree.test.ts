@@ -3,11 +3,12 @@ import QuadTree from '../QuadTree';
 import { createArray } from '../array_utils';
 import { Coordinates, Dimensions } from '../../types/position.types';
 import GraphPositions from '../../visualizations/graph/Graph.positions';
+import CoordinatesList from '../CoordinatesList';
 
 describe('QuadTree', () => {
   test('has zones when number of elements exceeds maxElementsPerZone', () => {
     const quadTree = new QuadTree(
-      [100, 100],
+      100,
       new GraphPositions({
         positions: [
           [0, 0],
@@ -23,7 +24,7 @@ describe('QuadTree', () => {
 
   test('has zones when number of elements exceeds maxElementsPerZone', () => {
     const quadTree = new QuadTree(
-      [100, 100],
+      100,
       new GraphPositions({
         positions: [
           [0, 0],
@@ -42,7 +43,7 @@ describe('QuadTree', () => {
 
   test('has zones when number of elements exceeds maxElementsPerZone', () => {
     const quadTree = new QuadTree(
-      [100, 100],
+      100,
       new GraphPositions({
         positions: [
           [0, 0],
@@ -61,7 +62,7 @@ describe('QuadTree', () => {
 
   test('getWeightedCenter returns the center of elements if elements are available', () => {
     const quadTree = new QuadTree(
-      [10, 10],
+      10,
       new GraphPositions({
         positions: [
           [2, 0],
@@ -77,7 +78,7 @@ describe('QuadTree', () => {
 
   test('getWeightedCenter returns the center of children if children are available', () => {
     const quadTree = new QuadTree(
-      [10, 10],
+      10,
       new GraphPositions({
         positions: [
           [2, 0],

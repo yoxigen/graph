@@ -5,6 +5,11 @@ fieldset {
   padding-inline: 0.5em;
 }
 
+fieldset.noborder {
+  border: none;
+  padding-inline: 0;
+}
+
 fieldset > legend {
   cursor: pointer;
   opacity: 0.8;

@@ -3,6 +3,8 @@ import * as styles from 'bundle-text:./ExpandablePanel.css';
 const sheet = new CSSStyleSheet();
 sheet.replaceSync(String(styles));
 
+const MINIMIZED_CLASS = 'minimized';
+
 export class ExpandablePanel extends HTMLElement {
   #legend: HTMLLegendElement;
   #fieldset: HTMLFieldSetElement;
@@ -28,7 +30,7 @@ export class ExpandablePanel extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ['legend', 'minimized'];
+    return ['legend', 'minimized', 'noborder'];
   }
 
   connectedCallback() {
@@ -43,27 +45,47 @@ export class ExpandablePanel extends HTMLElement {
     if (this.hasAttribute('legend')) {
       this.#legend.textContent = this.getAttribute('legend');
     } else {
-      this.#fieldset.classList.remove('minimized');
+      this.#fieldset.classList.remove(MINIMIZED_CLASS);
       this.#legend.textContent = '';
     }
 
-    if (this.hasAttribute('minimized')) {
-      this.#fieldset.classList.add('minimized');
+    if (this.hasAttribute(MINIMIZED_CLASS)) {
+      this.#fieldset.classList.add(MINIMIZED_CLASS);
     } else {
-      this.#fieldset.classList.remove('minimized');
+      this.#fieldset.classList.remove(MINIMIZED_CLASS);
+    }
+
+    if (this.hasAttribute('noborder')) {
+      this.#fieldset.classList.add('noborder');
+    } else {
+      this.#fieldset.classList.remove('noborder');
     }
   }
 
+  private notifyChange() {
+    this.dispatchEvent(
+      new CustomEvent('change', {
+        detail: {
+          isExpanded: this.#fieldset.classList.contains(MINIMIZED_CLASS),
+        },
+        bubbles: true,
+      })
+    );
+  }
+
   private toggle(): void {
-    this.#fieldset.classList.toggle('minimized');
+    this.#fieldset.classList.toggle(MINIMIZED_CLASS);
+    this.notifyChange();
   }
 
   open(): void {
-    this.#fieldset.classList.remove('minimized');
+    this.#fieldset.classList.remove(MINIMIZED_CLASS);
+    this.notifyChange();
   }
 
   close(): void {
-    this.#fieldset.classList.add('minimized');
+    this.#fieldset.classList.add(MINIMIZED_CLASS);
+    this.notifyChange();
   }
 }
 

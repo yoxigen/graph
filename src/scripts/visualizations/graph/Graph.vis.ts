@@ -12,11 +12,11 @@ import GraphPositions from './Graph.positions';
 import {
   GraphConfig,
   GraphData,
-  GraphTickEvent,
   MessageEventFromWorker,
   WorkerGraphInitEvent,
   WorkerGraphSetConfigValueEvent,
   WorkerGraphSetDataEvent,
+  WorkerGraphFixNodePositionEvent,
 } from './Graph.types';
 import {
   getForceBetweenNodes,
@@ -38,6 +38,11 @@ export default class Graph<TNodeData> extends EventBus<{
   positions: GraphPositions;
   velocities: CoordinatesList;
 
+  /**
+   * Keys are node indexes
+   */
+  fixedPositions: Map<number, Coordinates> = new Map();
+
   private isInit = false;
   private alpha: number;
   quadTree: QuadTree;
@@ -55,9 +60,9 @@ export default class Graph<TNodeData> extends EventBus<{
     friction: 0.05,
     warmupIterations: 0,
     gravityCenter: [0.5, 0.5],
-    alphaMin: 0.001,
+    alphaMin: 0,
     alphaDecay: 0.017,
-    alphaTarget: 0,
+    velocityDecay: 0.6,
     randomizePositions: false,
     minQuadSize: 3,
     theta: 1,
@@ -177,6 +182,42 @@ export default class Graph<TNodeData> extends EventBus<{
     }
   }
 
+  selectNodeAt(x: number, y: number): { index: number; data: TNodeData } {
+    this.createQuadTree();
+    const nodeIndex = this.quadTree.getElementAt(x, y, 10);
+    if (nodeIndex != null) {
+      return { data: this.data.nodes[nodeIndex], index: nodeIndex };
+    }
+  }
+
+  fixNodePosition(nodeIndex: number, x: number, y: number) {
+    if (this.worker) {
+      this.worker.postMessage({
+        type: 'fixNodePosition',
+        nodeIndex,
+        x,
+        y,
+      } as WorkerGraphFixNodePositionEvent);
+    } else {
+      this.fixedPositions.set(nodeIndex, [x, y]);
+      this.positions.set(nodeIndex, x, y);
+      this.velocities.set(nodeIndex, 0, 0);
+      this.alpha = 1;
+    }
+  }
+
+  unfixNodePosition(nodeIndex: number) {
+    if (this.worker) {
+      this.worker.postMessage({
+        type: 'unfixNodePosition',
+        nodeIndex,
+      });
+    } else {
+      this.fixedPositions.delete(nodeIndex);
+      this.alpha = 1;
+    }
+  }
+
   private initWorker() {
     if (!this.worker) {
       this.worker = new Worker(new URL('./Graph.worker.ts', import.meta.url), {
@@ -221,11 +262,12 @@ export default class Graph<TNodeData> extends EventBus<{
   *generate(): Generator<number> {
     this.emit('start', null);
     this.isGenerating = true;
-
+    console.log('START');
     if (!this.isWorker) {
       this.initWorker();
       console.log('generate---');
       this.worker.postMessage({ type: 'start' });
+      console.log('EXIT');
       return;
     }
 
@@ -248,22 +290,29 @@ export default class Graph<TNodeData> extends EventBus<{
       this.updateForces();
 
       for (let nodeIndex = 0; nodeIndex < this.nodesCount; nodeIndex++) {
-        const velocityX = this.velocities.getX(nodeIndex) * this.alpha;
-        const velocityY = this.velocities.getY(nodeIndex) * this.alpha;
+        const velocityX =
+          this.velocities.getX(nodeIndex) *
+          this.alpha *
+          this.config.velocityDecay;
+        const velocityY =
+          this.velocities.getY(nodeIndex) *
+          this.alpha *
+          this.config.velocityDecay;
 
         this.velocities.set(nodeIndex, velocityX, velocityY);
+        if (!this.fixedPositions.has(nodeIndex)) {
+          this.positions.addVector(nodeIndex, velocityX, velocityY);
 
-        this.positions.addVector(nodeIndex, velocityX, velocityY);
+          const nodeEnergy = Math.hypot(velocityX, velocityY);
 
-        const nodeEnergy = Math.hypot(velocityX, velocityY);
-
-        if (nodeEnergy > totalEnergy) {
-          totalEnergy = nodeEnergy;
+          if (nodeEnergy > totalEnergy) {
+            totalEnergy = nodeEnergy;
+          }
         }
       }
 
       this.alpha +=
-        (this.config.alphaTarget - this.alpha) * this.config.alphaDecay;
+        (this.config.alphaMin - this.alpha) * this.config.alphaDecay;
 
       if (!allowWarmup || count >= this.config.warmupIterations) {
         this.emit('tick', null);
@@ -273,6 +322,7 @@ export default class Graph<TNodeData> extends EventBus<{
     }
 
     this.isGenerating = false;
+    this.velocities.fill(0);
     this.emit('stop', null);
   }
 
@@ -296,7 +346,7 @@ export default class Graph<TNodeData> extends EventBus<{
       // quadtree is near, get its inner forces
       if (quadTree.elements) {
         for (const el of quadTree.elements) {
-          yield { center: el, weight: 1 };
+          yield { center: el.coordinates, weight: 1 };
         }
       } else {
         for (const child of quadTree.children.values()) {
@@ -324,37 +374,48 @@ export default class Graph<TNodeData> extends EventBus<{
     this.velocities.subtractVector(nodeIndex, ...force);
   }
 
+  private createQuadTree() {
+    this.quadTree = new QuadTree(Math.max(...this.size), this.positions, {
+      minChildWidth: this.config.minQuadSize,
+    });
+  }
+
   private updateForces() {
     let count = 0;
 
     if (this.config.useQuadtree) {
-      this.quadTree = new QuadTree(this.size, this.positions);
+      this.createQuadTree();
     }
 
     // Nodes gravity and repulsion between each other:
     for (let i = 0; i < this.nodesCount; i++) {
+      const isFixed = this.fixedPositions.has(i);
       const nodePosition = this.positions.get(i);
 
-      const gravityForce = getGravityForce(
-        nodePosition,
-        this.gravityCenter,
-        this.config.gravityForce
-      );
-      this.addForce(i, gravityForce);
-      if (this.config.useQuadtree) {
-        const generateWeightedCenters = this.generateForceCoordinates(
+      if (!isFixed) {
+        const gravityForce = getGravityForce(
           nodePosition,
-          this.quadTree
+          this.gravityCenter,
+          this.config.gravityForce
         );
-        for (const { center, weight } of generateWeightedCenters) {
-          const force = getForceBetweenNodes(
+        this.addForce(i, gravityForce);
+      }
+      if (this.config.useQuadtree) {
+        if (!isFixed) {
+          const generateWeightedCenters = this.generateForceCoordinates(
             nodePosition,
-            center,
-            this.config.charge * weight,
-            this.config.minDistance
+            this.quadTree
           );
-          this.addForce(i, force);
-          count++;
+          for (const { center, weight } of generateWeightedCenters) {
+            const force = getForceBetweenNodes(
+              nodePosition,
+              center,
+              this.config.charge * weight,
+              this.config.minDistance
+            );
+            this.addForce(i, force);
+            count++;
+          }
         }
       } else {
         for (let j = i + 1; j < this.nodesCount; j++) {
@@ -364,8 +425,12 @@ export default class Graph<TNodeData> extends EventBus<{
             this.config.charge,
             this.config.minDistance
           );
-          this.addForce(i, force);
-          this.subtractForce(j, force);
+          if (!isFixed) {
+            this.addForce(i, force);
+          }
+          if (!this.fixedPositions.has(j)) {
+            this.subtractForce(j, force);
+          }
           count++;
         }
       }
@@ -379,8 +444,12 @@ export default class Graph<TNodeData> extends EventBus<{
         this.config.linkStrength,
         this.config.linkLength
       );
-      this.addForce(link.source, force);
-      this.subtractForce(link.target, force);
+      if (!this.fixedPositions.has(link.source)) {
+        this.addForce(link.source, force);
+      }
+      if (!this.fixedPositions.has(link.target)) {
+        this.subtractForce(link.target, force);
+      }
     });
   }
 }

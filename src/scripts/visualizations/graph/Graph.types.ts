@@ -42,7 +42,7 @@ export type GraphConfig = {
   warmupIterations: number;
   alphaDecay: number;
   alphaMin: number;
-  alphaTarget: number;
+  velocityDecay: number;
   randomizePositions: boolean;
   useQuadtree: boolean;
   theta: number;
@@ -85,13 +85,27 @@ export type WorkerGraphResetEvent = {
   type: 'reset';
 };
 
+export type WorkerGraphFixNodePositionEvent = {
+  type: 'fixNodePosition';
+  nodeIndex: number;
+  x: number;
+  y: number;
+};
+
+export type WorkerGraphUnfixNodePositionEvent = {
+  type: 'unfixNodePosition';
+  nodeIndex: number;
+};
+
 export type WorkerGraphEvent =
   | WorkerGraphInitEvent
   | WorkerGraphConfigChangeEvent
   | WorkerGraphSetConfigValueEvent<any>
   | WorkerGraphSetDataEvent
   | WorkerGraphStartEvent
-  | WorkerGraphResetEvent;
+  | WorkerGraphResetEvent
+  | WorkerGraphFixNodePositionEvent
+  | WorkerGraphUnfixNodePositionEvent;
 
 export type GraphTickEvent = {
   type: 'tick';

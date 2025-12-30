@@ -1,9 +1,5 @@
-import {
-  Coordinates,
-  Dimensions,
-  WeightedCenter,
-} from '../types/position.types';
-import GraphPositions from '../visualizations/graph/Graph.positions';
+import { Coordinates, WeightedCenter } from '../types/position.types';
+import CoordinatesList from './CoordinatesList';
 
 export type QuadTreeOptions = {
   maxElementsPerQuad: number;
@@ -19,10 +15,15 @@ const DEFAULT_OPTIONS: QuadTreeOptions = {
   minChildWidth: 1,
 };
 
+type QuadTreeElement = {
+  coordinates: Coordinates;
+  // The index of the element on the root QuadTree
+  id: number;
+};
+
 export default class QuadTree {
-  elements: Coordinates[];
+  elements: QuadTreeElement[];
   children: Map<number, QuadTree>;
-  readonly width: number;
   readonly options: QuadTreeOptions;
   private childWidth: number;
   private center: Coordinates;
@@ -32,15 +33,14 @@ export default class QuadTree {
   #weight: number;
 
   constructor(
-    dimensions: Dimensions,
-    positions?: GraphPositions,
+    public readonly width: number,
+    positions?: CoordinatesList,
     options: Partial<QuadTreeOptions> = {}
   ) {
     this.options = Object.assign({}, DEFAULT_OPTIONS, options);
-    this.width = Math.max(...dimensions);
 
     if (positions) {
-      this.add(...positions.toCoordinates());
+      this.addPositions(positions);
     }
   }
 
@@ -59,31 +59,66 @@ export default class QuadTree {
     return this.#weight;
   }
 
-  add(...coordinates: Coordinates[]) {
+  push(element: QuadTreeElement) {
     if (
       this.isMaxDepth ||
       (!this.children &&
-        (this.elements?.length || 0) + coordinates.length <=
-          this.options.maxElementsPerQuad)
+        (this.elements?.length || 0) < this.options.maxElementsPerQuad)
     ) {
-      this.elements = this.elements
-        ? this.elements.concat(coordinates)
-        : coordinates;
+      if (!this.elements) {
+        this.elements = [element];
+      } else {
+        this.elements.push(element);
+      }
     } else {
       if (!this.children) {
         this.split();
       }
       if (this.isMaxDepth) {
-        this.elements = this.elements
-          ? this.elements.concat(coordinates)
-          : coordinates;
+        this.elements.push(element);
       } else {
-        coordinates.forEach(element => this.addElementToZone(element));
+        this.addElementToZone(element);
       }
     }
   }
 
-  private getZoneAtPosition(position: Coordinates): QuadTree {
+  addPositions(positions: CoordinatesList) {
+    const addElements = () => {
+      if (!this.elements) {
+        this.elements = [];
+      }
+      const startIndex = this.elements.length;
+
+      positions.forEach((x, y, index) =>
+        this.elements.push({ coordinates: [x, y], id: startIndex + index })
+      );
+    };
+
+    if (
+      this.isMaxDepth ||
+      (!this.children &&
+        (this.elements?.length || 0) + positions.size <=
+          this.options.maxElementsPerQuad)
+    ) {
+      addElements();
+    } else {
+      if (!this.children) {
+        this.split();
+      }
+      if (this.isMaxDepth) {
+        addElements();
+      } else {
+        positions.forEach((x, y, index) =>
+          this.addElementToZone({ coordinates: [x, y], id: index })
+        );
+      }
+    }
+  }
+
+  private getZoneAtPosition(
+    position: Coordinates,
+    createIfNotFound = false
+  ): QuadTree {
     if (!this.children) {
       return null;
     }
@@ -95,10 +130,10 @@ export default class QuadTree {
       zone = position[1] < this.center[1] ? 1 : 2;
     }
 
-    if (!this.children.has(zone)) {
+    if (!this.children.has(zone) && createIfNotFound) {
       this.children.set(
         zone,
-        new QuadTree([this.childWidth, this.childWidth], null, {
+        new QuadTree(this.childWidth, null, {
           ...this.options,
           position: this.getPositionForZone(zone),
           depth: this.options.depth + 1,
@@ -109,12 +144,12 @@ export default class QuadTree {
     return this.children.get(zone);
   }
 
-  private addElementToZone(element: Coordinates) {
+  private addElementToZone(element: QuadTreeElement) {
     // 1. Fine the appropriate zone
-    const zone = this.getZoneAtPosition(element);
+    const zone = this.getZoneAtPosition(element.coordinates, true);
 
     // 2. add the element to the found zone
-    zone.add(element);
+    zone.push(element);
   }
 
   private split() {
@@ -150,6 +185,33 @@ export default class QuadTree {
     }
   }
 
+  getElementAt(x: number, y: number, radius = 10): number | null {
+    if (this.elements) {
+      let closestElement: { element: QuadTreeElement; distance: number };
+      for (const element of this.elements) {
+        const distance = Math.hypot(
+          Math.abs(x - element.coordinates[0]),
+          Math.abs(y - element.coordinates[1])
+        );
+        if (
+          distance <= radius &&
+          (!closestElement || closestElement.distance > distance)
+        ) {
+          closestElement = { element, distance };
+        }
+      }
+      return closestElement?.element.id;
+      // Get the element closest to the x/y, within the radius
+    } else {
+      if (this.children) {
+        const child = this.getZoneAtPosition([x, y]);
+        return child?.getElementAt(x, y, radius) ?? null;
+      }
+
+      return null;
+    }
+  }
+
   /**
    * Gets the innermost zone that contains the specified position
    * @param position
@@ -160,7 +222,7 @@ export default class QuadTree {
       return this;
     }
 
-    const zone = this.getZoneAtPosition(position);
+    const zone = this.getZoneAtPosition(position, false);
     return zone.getZone(position);
   }
 
@@ -170,9 +232,9 @@ export default class QuadTree {
         this.weightedCenter = {
           center: this.elements
             .reduce(
-              (avg: Coordinates, element: Coordinates) => [
-                avg[0] + element[0],
-                avg[1] + element[1],
+              (avg: Coordinates, { coordinates }) => [
+                avg[0] + coordinates[0],
+                avg[1] + coordinates[1],
               ],
               [0, 0]
             )

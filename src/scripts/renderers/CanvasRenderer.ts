@@ -14,11 +14,14 @@ export default class CanvasRenderer extends Renderer {
     const rect = this.parentElement.getBoundingClientRect();
     this.size = [rect.width, rect.height];
 
+    const dpi = devicePixelRatio;
     const canvas = document.createElement('canvas');
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    canvas.width = rect.width * dpi;
+    canvas.height = rect.height * dpi;
     this.parentElement.appendChild(canvas);
     this.ctx = canvas.getContext('2d');
+    this.element = canvas;
+    canvas.style.touchAction = 'none';
   }
 
   clear() {
@@ -29,7 +32,12 @@ export default class CanvasRenderer extends Renderer {
     return this.size;
   }
 
-  drawCircle(center: Coordinates, radius: number, color?: string) {
+  drawCircle(
+    center: Coordinates,
+    radius: number,
+    color?: string,
+    stroke = false
+  ) {
     if (color) {
       this.ctx.fillStyle = color;
     }
@@ -37,6 +45,9 @@ export default class CanvasRenderer extends Renderer {
     this.ctx.beginPath();
     this.ctx.moveTo(center[0] + radius, center[1]);
     this.ctx.arc(...center, radius, 0, Math.PI * 2);
+    if (stroke) {
+      this.ctx.stroke();
+    }
     this.ctx.fill();
   }
 
@@ -54,6 +65,11 @@ export default class CanvasRenderer extends Renderer {
       this.ctx.lineTo(...pair[1]);
     }
     this.ctx.stroke();
+  }
+
+  drawText(position: Coordinates, text: string, font = '14px Arial') {
+    this.ctx.font = font;
+    this.ctx.fillText(text, position[0], position[1]);
   }
 
   setFillColor(fill: string): void {

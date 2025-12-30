@@ -8,17 +8,19 @@
     <script type="module" src="scripts/main.ts"></script>
   </head>
   <body>
-    <div id="controls_panel">
-      <div>
-        <label for="charge">Data</label>
-        <select id="test_data"></select>
+    <expandable-panel id="config_panel" legend="Config" noborder>
+      <div id="controls_panel">
+        <div>
+          <label for="charge">Data</label>
+          <select id="test_data"></select>
+        </div>
+        <h4>Graph</h4>
+        <form id="graph_controls"></form>
+        <h4>Render options</h4>
+        <form id="render_controls"></form>
+        <button id="reset_btn">Reset</button>
       </div>
-      <h4>Graph</h4>
-      <form id="graph_controls"></form>
-      <h4>Render options</h4>
-      <form id="render_controls"></form>
-      <button id="reset_btn">Reset</button>
-    </div>
+    </expandable-panel>
     <article id="graph"></article>
   </body>
 </html>

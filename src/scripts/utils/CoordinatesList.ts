@@ -12,8 +12,10 @@ export default class CoordinatesList {
     if (v instanceof Array) {
       this.values = new Float16Array(v.length * 2);
       v.forEach((pos, i) => this.set(i, pos[0], pos[1]));
+      this.size = v.length;
     } else if (v instanceof ArrayBuffer) {
       this.values = new Float16Array(v);
+      this.size = v.byteLength / 4;
     } else {
       this.size = v;
       this.values = new Float16Array(this.size * 2);
@@ -56,5 +58,15 @@ export default class CoordinatesList {
 
   toCoordinates(): Coordinates[] {
     return createArray(this.size, i => this.get(i));
+  }
+
+  forEach(callback: (x: number, y: number, index: number) => any) {
+    for (let i = 0; i < this.values.length; i += 2) {
+      callback(this.values[i], this.values[i + 1], i / 2);
+    }
+  }
+
+  fill(value: number) {
+    this.values.fill(value);
   }
 }

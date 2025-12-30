@@ -6,6 +6,8 @@ export type RendererOptions = {
 };
 
 export default abstract class Renderer {
+  element: HTMLElement;
+
   constructor(
     protected parentElement: HTMLElement,
     protected options: Partial<RendererOptions> = {}

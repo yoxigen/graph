@@ -87,6 +87,9 @@ class Routing extends EventBus<{
     const urlParams = new URLSearchParams();
     if (data ?? this.#currentData) {
       urlParams.set('data', data ?? this.#currentData);
+      if (data) {
+        this.#currentData = data;
+      }
     }
 
     if (configQuery) {

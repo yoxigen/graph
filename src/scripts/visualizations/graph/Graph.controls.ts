@@ -51,6 +51,56 @@ const graphControls: ControlsConfig<GraphConfig> = [
     isStructural: true,
   },
   {
+    key: 'linkStrength',
+    type: 'range',
+    label: 'Link strength',
+    attr: {
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    defaultValue: 0.1,
+    isStructural: true,
+  },
+  {
+    key: 'alphaMin',
+    type: 'range',
+    label: 'Minimum alpha',
+    attr: {
+      min: 0,
+      max: 0.9,
+      step: 0.01,
+    },
+    defaultValue: 0,
+    isStructural: true,
+  },
+  {
+    key: 'velocityDecay',
+    type: 'range',
+    label: 'Velocity decay',
+    attr: {
+      min: 0.1,
+      max: 1,
+      step: 0.01,
+    },
+    defaultValue: 0.6,
+    isStructural: true,
+  },
+  {
+    key: 'minDistance',
+    type: 'range',
+    label: 'Min distance',
+    description:
+      'The smallest distance between two nodes to use when calculating the force between them',
+    attr: {
+      min: 0,
+      max: 200,
+      step: 1,
+    },
+    defaultValue: 10,
+    isStructural: true,
+  },
+  {
     key: 'warmupIterations',
     type: 'range',
     label: 'Warmup iterations',

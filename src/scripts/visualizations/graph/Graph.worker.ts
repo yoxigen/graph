@@ -46,6 +46,18 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent>) => {
       clearTimeout(tickTimeout);
       graph.reset();
       break;
+    case 'fixNodePosition':
+      graph.fixNodePosition(e.data.nodeIndex, e.data.x, e.data.y);
+      if (!graph.isGenerating) {
+        render();
+      }
+      break;
+    case 'unfixNodePosition':
+      graph.unfixNodePosition(e.data.nodeIndex);
+      if (!graph.isGenerating) {
+        render();
+      }
+      break;
   }
 };
 
