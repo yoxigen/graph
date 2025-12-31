@@ -48,6 +48,7 @@ export type GraphConfig = {
   minQuadSize: number;
   allowWorker: boolean;
   animate: boolean;
+  isTree: boolean;
 };
 
 export type GraphMessageType = 'init' | 'config';
@@ -58,18 +59,18 @@ export type WorkerGraphSetConfigValueEvent<TKey extends keyof GraphConfig> = {
   value: GraphConfig[TKey];
 };
 
-export type WorkerGraphInitEvent = {
+export type WorkerGraphInitEvent<TNodeData extends Object> = {
   type: 'init';
   links: GraphLinkData[];
-  nodesCount: number;
+  nodes: TNodeData[];
   dimensions: Dimensions;
   config: GraphConfig;
 };
 
-export type WorkerGraphSetDataEvent = {
+export type WorkerGraphSetDataEvent<TNodeData extends Object> = {
   type: 'setData';
   links: GraphLinkData[];
-  nodesCount: number;
+  nodes: TNodeData[];
 };
 
 export type WorkerGraphConfigChangeEvent = {
@@ -97,11 +98,11 @@ export type WorkerGraphUnfixNodePositionEvent = {
   nodeIndex: number;
 };
 
-export type WorkerGraphEvent =
-  | WorkerGraphInitEvent
+export type WorkerGraphEvent<TNodeData extends Object> =
+  | WorkerGraphInitEvent<TNodeData>
   | WorkerGraphConfigChangeEvent
   | WorkerGraphSetConfigValueEvent<any>
-  | WorkerGraphSetDataEvent
+  | WorkerGraphSetDataEvent<TNodeData>
   | WorkerGraphStartEvent
   | WorkerGraphResetEvent
   | WorkerGraphFixNodePositionEvent

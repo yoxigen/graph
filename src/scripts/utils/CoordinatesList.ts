@@ -33,8 +33,16 @@ export default class CoordinatesList {
     return this.values[index * 2];
   }
 
+  setX(index: number, value: number) {
+    this.values[index * 2] = value;
+  }
+
   getY(index: number): number {
     return this.values[index * 2 + 1];
+  }
+
+  setY(index: number, value: number) {
+    this.values[index * 2 + 1] = value;
   }
 
   get(index: number): Coordinates {
@@ -42,8 +50,8 @@ export default class CoordinatesList {
   }
 
   set(index: number, x: number, y: number) {
-    this.values[index * 2] = x;
-    this.values[index * 2 + 1] = y;
+    this.setX(index, x);
+    this.setY(index, y);
   }
 
   addVector(index: number, x: number, y: number) {

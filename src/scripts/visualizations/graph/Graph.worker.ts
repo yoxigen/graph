@@ -1,12 +1,13 @@
 /// <reference lib="webworker" />
 
+import { TestNodeData } from '../../../test_data/graph_test_data';
 import { WorkerGraphEvent, WorkerGraphInitEvent } from './Graph.types';
 import Graph from './Graph.vis';
 import 'scheduler-polyfill';
 
 type WorkerGraphNodeData = { id: number };
 
-let graph: Graph<WorkerGraphNodeData>;
+let graph: Graph<TestNodeData>;
 let tickTimeout;
 let taskController: TaskController;
 
@@ -21,7 +22,7 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent>) => {
       clearTimeout(tickTimeout);
       graph.setData({
         links: e.data.links,
-        nodes: new Array(e.data.nodesCount),
+        nodes: e.data.nodes,
       });
       if (!graph.isGenerating) {
         render();
@@ -77,16 +78,16 @@ function notifyEnd() {
   });
 }
 
-function init(e: WorkerGraphInitEvent) {
+function init(e: WorkerGraphInitEvent<TestNodeData>) {
   if (graph) {
     throw new Error('Graph worker already initialized!');
   }
 
-  graph = new Graph(
+  graph = new Graph<TestNodeData>(
     e.dimensions,
     { ...e.config, allowWorker: false },
     {
-      nodes: new Array(e.nodesCount),
+      nodes: e.nodes,
       links: e.links,
     }
   );

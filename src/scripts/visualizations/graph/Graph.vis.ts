@@ -24,7 +24,7 @@ import {
   getLinkForce,
 } from './graph_utils';
 
-export default class Graph<TNodeData> extends EventBus<{
+export default class Graph<TNodeData extends Object> extends EventBus<{
   configChange: Partial<GraphConfig>;
   dataChange: GraphData<TNodeData>;
   reset: void;
@@ -68,6 +68,7 @@ export default class Graph<TNodeData> extends EventBus<{
     useQuadtree: false,
     allowWorker: true,
     animate: true,
+    isTree: false,
   };
 
   constructor(
@@ -99,6 +100,7 @@ export default class Graph<TNodeData> extends EventBus<{
   reset() {
     this.alpha = 1;
     this.isInit = false;
+    this.fixedPositions = new Map();
     this.quadTree = null;
     this.worker?.postMessage({ type: 'reset' });
     this.emit('reset', null);
@@ -110,6 +112,30 @@ export default class Graph<TNodeData> extends EventBus<{
       randomizeInitialPositions: this.config.randomizePositions,
       gravityCenter: this.gravityCenter,
     });
+
+    if (this.config.isTree) {
+      const padding = 20;
+
+      const levelsSet = new Set<number>();
+      this.data.nodes.forEach(node => {
+        if (
+          'level' in node &&
+          node.level != null &&
+          typeof node.level === 'number'
+        ) {
+          levelsSet.add(Number(node.level));
+        }
+      });
+      if (levelsSet.size) {
+        const levelSize = (this.size[1] - 2 * padding) / (levelsSet.size - 1);
+        for (let i = 0; i < this.nodesCount; i++) {
+          this.positions.setY(
+            i,
+            padding + levelSize * this.data.nodes[i].level
+          );
+        }
+      }
+    }
     this.velocities = new CoordinatesList(this.nodesCount);
     this.isInit = true;
   }
@@ -123,8 +149,8 @@ export default class Graph<TNodeData> extends EventBus<{
     this.worker?.postMessage({
       type: 'setData',
       links: data.links,
-      nodesCount: data.nodes.length,
-    } as WorkerGraphSetDataEvent);
+      nodes: data.nodes,
+    } as WorkerGraphSetDataEvent<TNodeData>);
     this.emit('dataChange', data);
   }
 
@@ -226,8 +252,8 @@ export default class Graph<TNodeData> extends EventBus<{
         config: this.config,
         dimensions: this.size,
         links: this.data.links,
-        nodesCount: this.nodesCount,
-      } as WorkerGraphInitEvent);
+        nodes: this.data.nodes,
+      } as WorkerGraphInitEvent<TNodeData>);
 
       this.worker.onmessage = (e: MessageEvent<MessageEventFromWorker>) =>
         this.onWorkerMessage(e);
@@ -287,8 +313,9 @@ export default class Graph<TNodeData> extends EventBus<{
       for (let nodeIndex = 0; nodeIndex < this.nodesCount; nodeIndex++) {
         const velocityX =
           this.velocities.getX(nodeIndex) * this.alpha * velocityDecay;
-        const velocityY =
-          this.velocities.getY(nodeIndex) * this.alpha * velocityDecay;
+        const velocityY = this.config.isTree
+          ? 0
+          : this.velocities.getY(nodeIndex) * this.alpha * velocityDecay;
 
         this.velocities.set(nodeIndex, velocityX, velocityY);
         if (!this.fixedPositions.has(nodeIndex)) {

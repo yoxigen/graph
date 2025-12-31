@@ -1,5 +1,4 @@
 import { Coordinates } from '../../types/position.types';
-import { createArray } from '../../utils/array_utils';
 import CoordinatesList from '../../utils/CoordinatesList';
 
 export type GraphPositionsOptions = {
