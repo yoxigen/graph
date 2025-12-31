@@ -16,13 +16,6 @@ const graphRenderControls: ControlsConfig<GraphRenderConfig<TestNodeData>> = [
     isStructural: true,
   },
   {
-    key: 'animate',
-    type: 'checkbox',
-    label: 'Animate',
-    defaultValue: true,
-    isStructural: false,
-  },
-  {
     key: 'linkColor',
     type: 'color',
     label: 'Link color',

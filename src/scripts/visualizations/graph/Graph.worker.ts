@@ -2,11 +2,13 @@
 
 import { WorkerGraphEvent, WorkerGraphInitEvent } from './Graph.types';
 import Graph from './Graph.vis';
+import 'scheduler-polyfill';
 
 type WorkerGraphNodeData = { id: number };
 
 let graph: Graph<WorkerGraphNodeData>;
 let tickTimeout;
+let taskController: TaskController;
 
 self['isGraphWorker'] = true;
 
@@ -36,11 +38,12 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent>) => {
       render();
       break;
     case 'setConfigValue':
+      console.log('config value');
       clearTimeout(tickTimeout);
       graph.setConfigValue(e.data.key, e.data.value);
-      if (!graph.isGenerating) {
-        render();
-      }
+      // if (!graph.isGenerating) {
+      render();
+      // }
       break;
     case 'reset':
       clearTimeout(tickTimeout);
@@ -48,9 +51,9 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent>) => {
       break;
     case 'fixNodePosition':
       graph.fixNodePosition(e.data.nodeIndex, e.data.x, e.data.y);
-      if (!graph.isGenerating) {
-        render();
-      }
+      // if (!graph.isGenerating) {
+      render();
+      // }
       break;
     case 'unfixNodePosition':
       graph.unfixNodePosition(e.data.nodeIndex);
@@ -91,7 +94,6 @@ function init(e: WorkerGraphInitEvent) {
   graph.on('stop', () => {
     notifyTick();
   });
-  console.log('GRAPH', graph);
 }
 
 let currentRenderId: number;
@@ -100,46 +102,75 @@ let raf: number;
 const frameRate = 1000 / 120;
 
 function render() {
+  if (taskController && !taskController.signal.aborted) {
+    taskController.abort('Redraw');
+  }
+
   const generator = graph.generate();
 
   const renderId = lastRenderId++;
   currentRenderId = renderId;
   cancelAnimationFrame(raf);
 
-  const animate = true;
+  const animate = graph.config.animate;
+  taskController = new TaskController({ priority: 'background' });
   if (animate) {
     let lastTick: number;
 
     const step = () => {
-      if (renderId !== currentRenderId) {
-        // Not in the current render loop, exit
-        return;
-      }
-      const result = generator.next();
-      const now = performance.now();
-      if (!lastTick || now - lastTick >= frameRate) {
-        notifyTick();
-      } else {
-        console.log('NOT NOTIFYING');
-      }
-      lastTick = now;
+      scheduler
+        .postTask(
+          () => {
+            if (renderId !== currentRenderId) {
+              // Not in the current render loop, exit
+              return;
+            }
+            const result = generator.next();
+            const now = performance.now();
+            if (!lastTick || now - lastTick >= frameRate) {
+              notifyTick();
+            } else {
+              console.log('NOT NOTIFYING');
+            }
+            lastTick = now;
 
-      if (!result.done) {
-        tickTimeout = setTimeout(step, frameRate);
-      } else {
-        notifyEnd();
-        currentRenderId = null;
-        raf = null;
-      }
+            if (!result.done) {
+              tickTimeout = setTimeout(step, frameRate);
+            } else {
+              notifyEnd();
+              currentRenderId = null;
+              raf = null;
+            }
+          },
+          {
+            signal: taskController.signal,
+          }
+        )
+        .catch(reason => {
+          console.log('ABORTED ANIMATION!');
+        });
     };
 
     step();
   } else {
     const start = performance.now();
 
-    while (!generator.next().done);
-    notifyTick();
-    notifyEnd();
-    console.log('TIME', performance.now() - start);
+    scheduler
+      .postTask(
+        () => {
+          while (!generator.next().done) {
+            console.log('TICK');
+          }
+          notifyTick();
+          notifyEnd();
+          console.log('TIME', performance.now() - start);
+        },
+        {
+          signal: taskController.signal,
+        }
+      )
+      .catch(reason => {
+        console.log('ABORTED!');
+      });
   }
 }

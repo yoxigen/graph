@@ -42,12 +42,12 @@ export type GraphConfig = {
   warmupIterations: number;
   alphaDecay: number;
   alphaMin: number;
-  velocityDecay: number;
   randomizePositions: boolean;
   useQuadtree: boolean;
   theta: number;
   minQuadSize: number;
   allowWorker: boolean;
+  animate: boolean;
 };
 
 export type GraphMessageType = 'init' | 'config';

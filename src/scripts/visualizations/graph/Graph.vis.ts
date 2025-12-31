@@ -57,17 +57,17 @@ export default class Graph<TNodeData> extends EventBus<{
     minEnergy: 0.2,
     linkStrength: 0.1,
     linkLength: 20,
-    friction: 0.05,
+    friction: 0.4,
     warmupIterations: 0,
     gravityCenter: [0.5, 0.5],
     alphaMin: 0,
     alphaDecay: 0.017,
-    velocityDecay: 0.6,
     randomizePositions: false,
     minQuadSize: 3,
     theta: 1,
     useQuadtree: false,
     allowWorker: true,
+    animate: true,
   };
 
   constructor(
@@ -141,9 +141,6 @@ export default class Graph<TNodeData> extends EventBus<{
 
       if (notifyChange) {
         this.alpha = 1;
-        if (this.worker) {
-          console.log('setConfigValue---');
-        }
         this.worker?.postMessage({
           type: 'setConfigValue',
           key,
@@ -262,15 +259,13 @@ export default class Graph<TNodeData> extends EventBus<{
   *generate(): Generator<number> {
     this.emit('start', null);
     this.isGenerating = true;
-    console.log('START');
     if (!this.isWorker) {
       this.initWorker();
-      console.log('generate---');
       this.worker.postMessage({ type: 'start' });
-      console.log('EXIT');
       return;
     }
 
+    const velocityDecay = 1 - this.config.friction;
     const allowWarmup = !this.isInit;
 
     if (!this.isInit) {
@@ -291,13 +286,9 @@ export default class Graph<TNodeData> extends EventBus<{
 
       for (let nodeIndex = 0; nodeIndex < this.nodesCount; nodeIndex++) {
         const velocityX =
-          this.velocities.getX(nodeIndex) *
-          this.alpha *
-          this.config.velocityDecay;
+          this.velocities.getX(nodeIndex) * this.alpha * velocityDecay;
         const velocityY =
-          this.velocities.getY(nodeIndex) *
-          this.alpha *
-          this.config.velocityDecay;
+          this.velocities.getY(nodeIndex) * this.alpha * velocityDecay;
 
         this.velocities.set(nodeIndex, velocityX, velocityY);
         if (!this.fixedPositions.has(nodeIndex)) {

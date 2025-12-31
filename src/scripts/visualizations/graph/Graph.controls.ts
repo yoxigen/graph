@@ -75,15 +75,15 @@ const graphControls: ControlsConfig<GraphConfig> = [
     isStructural: true,
   },
   {
-    key: 'velocityDecay',
+    key: 'friction',
     type: 'range',
-    label: 'Velocity decay',
+    label: 'Friction',
     attr: {
-      min: 0.1,
-      max: 1,
+      min: 0,
+      max: 0.9,
       step: 0.01,
     },
-    defaultValue: 0.6,
+    defaultValue: 0.4,
     isStructural: true,
   },
   {
@@ -150,6 +150,13 @@ const graphControls: ControlsConfig<GraphConfig> = [
     defaultValue: 1,
     isStructural: true,
     show: ({ useQuadtree }) => useQuadtree,
+  },
+  {
+    key: 'animate',
+    type: 'checkbox',
+    label: 'Animate',
+    defaultValue: true,
+    isStructural: false,
   },
 ];
 
