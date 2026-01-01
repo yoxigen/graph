@@ -52,9 +52,7 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent>) => {
       break;
     case 'fixNodePosition':
       graph.fixNodePosition(e.data.nodeIndex, e.data.x, e.data.y);
-      // if (!graph.isGenerating) {
       render();
-      // }
       break;
     case 'unfixNodePosition':
       graph.unfixNodePosition(e.data.nodeIndex);
@@ -62,6 +60,9 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent>) => {
         render();
       }
       break;
+    case 'unfixAllNodePositions':
+      graph.unfixAllNodePositions();
+      render();
   }
 };
 

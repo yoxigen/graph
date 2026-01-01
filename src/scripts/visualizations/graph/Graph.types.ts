@@ -98,6 +98,10 @@ export type WorkerGraphUnfixNodePositionEvent = {
   nodeIndex: number;
 };
 
+export type WorkerGraphUnfixAllNodePositionsEvent = {
+  type: 'unfixAllNodePositions';
+};
+
 export type WorkerGraphEvent<TNodeData extends Object> =
   | WorkerGraphInitEvent<TNodeData>
   | WorkerGraphConfigChangeEvent
@@ -106,7 +110,8 @@ export type WorkerGraphEvent<TNodeData extends Object> =
   | WorkerGraphStartEvent
   | WorkerGraphResetEvent
   | WorkerGraphFixNodePositionEvent
-  | WorkerGraphUnfixNodePositionEvent;
+  | WorkerGraphUnfixNodePositionEvent
+  | WorkerGraphUnfixAllNodePositionsEvent;
 
 export type GraphTickEvent = {
   type: 'tick';

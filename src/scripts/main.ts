@@ -41,6 +41,10 @@ function main() {
     .querySelector('#reset_btn')
     .addEventListener('click', () => graph.reset());
 
+  document
+    .querySelector('#unfix_btn')
+    .addEventListener('click', () => graph.unfixAllNodePositions());
+
   function initConfigControls() {
     const controls = new EditorControls<GraphConfig>(
       document.querySelector('#graph_controls'),

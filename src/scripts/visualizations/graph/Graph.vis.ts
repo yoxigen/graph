@@ -229,6 +229,17 @@ export default class Graph<TNodeData extends Object> extends EventBus<{
     }
   }
 
+  unfixAllNodePositions() {
+    if (this.worker) {
+      this.worker.postMessage({
+        type: 'unfixAllNodePositions',
+      });
+    } else {
+      this.fixedPositions.clear();
+      this.alpha = 1;
+    }
+  }
+
   unfixNodePosition(nodeIndex: number) {
     if (this.worker) {
       this.worker.postMessage({
