@@ -154,7 +154,7 @@ const graphControls: ControlsConfig<GraphConfig> = [
   {
     key: 'isTree',
     type: 'checkbox',
-    label: 'IS tree',
+    label: 'Tree',
     defaultValue: false,
     isStructural: false,
   },

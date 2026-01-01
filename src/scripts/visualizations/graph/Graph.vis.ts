@@ -207,7 +207,7 @@ export default class Graph<TNodeData extends Object> extends EventBus<{
 
   selectNodeAt(x: number, y: number): { index: number; data: TNodeData } {
     this.createQuadTree();
-    const nodeIndex = this.quadTree.getElementAt(x, y, 10);
+    const nodeIndex = this.quadTree.findElementAt(x, y, 10)?.id;
     if (nodeIndex != null) {
       return { data: this.data.nodes[nodeIndex], index: nodeIndex };
     }

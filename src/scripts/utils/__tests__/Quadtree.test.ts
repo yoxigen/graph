@@ -90,4 +90,42 @@ describe('QuadTree', () => {
     );
     expect(quadTree.getWeightedCenter()).toEqual({ center: [3, 1], weight: 3 });
   });
+
+  test('finds an element at position', () => {
+    const quadTree = new QuadTree(
+      100,
+      new GraphPositions({
+        positions: [
+          [0, 0],
+          [51, 1],
+          [52, 2],
+          [60, 10],
+          [90, 10],
+          [10, 75],
+        ],
+      }),
+      { maxElementsPerQuad: 2 }
+    );
+    const result = quadTree.findElementAt(62, 11, 10)?.id;
+    expect(result).toEqual(3);
+  });
+
+  test("finds an element at position even when the position is not in the element's quad", () => {
+    const quadTree = new QuadTree(
+      100,
+      new GraphPositions({
+        positions: [
+          [0, 0],
+          [51, 1],
+          [30, 48],
+          [60, 10],
+          [90, 10],
+          [10, 75],
+        ],
+      }),
+      { maxElementsPerQuad: 2 }
+    );
+    const result = quadTree.findElementAt(31, 52, 10).id;
+    expect(result).toEqual(2);
+  });
 });

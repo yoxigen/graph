@@ -1,4 +1,8 @@
-import { Coordinates, WeightedCenter } from '../types/position.types';
+import {
+  BoundingRect,
+  Coordinates,
+  WeightedCenter,
+} from '../types/position.types';
 import CoordinatesList from './CoordinatesList';
 
 export type QuadTreeOptions = {
@@ -29,6 +33,7 @@ export default class QuadTree {
   private center: Coordinates;
   private weightedCenter: WeightedCenter;
   private isMaxDepth: boolean;
+  private childRects: Map<number, BoundingRect> = new Map();
 
   #weight: number;
 
@@ -185,27 +190,81 @@ export default class QuadTree {
     }
   }
 
-  getElementAt(x: number, y: number, radius = 10): number | null {
-    if (this.elements) {
-      let closestElement: { element: QuadTreeElement; distance: number };
-      for (const element of this.elements) {
-        const distance = Math.hypot(
-          Math.abs(x - element.coordinates[0]),
-          Math.abs(y - element.coordinates[1])
-        );
-        if (
-          distance <= radius &&
-          (!closestElement || closestElement.distance > distance)
-        ) {
-          closestElement = { element, distance };
-        }
+  private getChildRect(childIndex: number): BoundingRect {
+    if (this.childRects.has(childIndex)) {
+      return this.childRects.get(childIndex);
+    }
+
+    const isTopRow = childIndex === 0 || childIndex === 1;
+    const isLeftColumn = childIndex === 0 || childIndex === 3;
+
+    const rect = {
+      width: this.childWidth,
+      height: this.childWidth,
+      top: isTopRow ? 0 : this.center[1],
+      bottom: isTopRow ? this.center[1] : this.width,
+      left: isLeftColumn ? 0 : this.center[0],
+      right: isLeftColumn ? this.center[0] : this.width,
+    };
+
+    this.childRects.set(childIndex, rect);
+    return rect;
+  }
+
+  private getElementClosestToPosition(
+    elements: QuadTreeElement[],
+    x: number,
+    y: number,
+    radius: number = Infinity
+  ): QuadTreeElement {
+    let closestElement: { element: QuadTreeElement; distance: number };
+    for (const element of elements) {
+      const distance = Math.hypot(
+        Math.abs(x - element.coordinates[0]),
+        Math.abs(y - element.coordinates[1])
+      );
+      if (
+        distance <= radius &&
+        (!closestElement || closestElement.distance > distance)
+      ) {
+        closestElement = { element, distance };
       }
-      return closestElement?.element.id;
-      // Get the element closest to the x/y, within the radius
+    }
+    return closestElement?.element;
+  }
+
+  // Get the element closest to the x/y, within the radius
+  findElementAt(x: number, y: number, radius = 10): QuadTreeElement | null {
+    if (this.elements) {
+      return this.getElementClosestToPosition(this.elements, x, y, radius);
     } else {
       if (this.children) {
-        const child = this.getZoneAtPosition([x, y]);
-        return child?.getElementAt(x, y, radius) ?? null;
+        const relevantChildren = this.children
+          .entries()
+          .filter(([childIndex]) => {
+            const rect = this.getChildRect(childIndex);
+            const isTopRow = childIndex === 0 || childIndex === 1;
+            const isLeftColumn = childIndex === 0 || childIndex === 3;
+
+            const fitsX = isLeftColumn
+              ? x < rect.right + radius
+              : x > rect.left - radius;
+
+            if (fitsX) {
+              // If the position is valid on the X axis, return true if it also fits in the Y axis
+              return isTopRow
+                ? y < rect.bottom + radius
+                : y > rect.top - radius;
+            }
+          });
+        const possibleElements = [];
+        relevantChildren.forEach(([index, quad]) => {
+          const elementAtPosition = quad.findElementAt(x, y, radius);
+          if (elementAtPosition) {
+            possibleElements.push(elementAtPosition);
+          }
+        });
+        return this.getElementClosestToPosition(possibleElements, x, y);
       }
 
       return null;
