@@ -13,7 +13,7 @@ let taskController: TaskController;
 
 self['isGraphWorker'] = true;
 
-self.onmessage = (e: MessageEvent<WorkerGraphEvent>) => {
+self.onmessage = (e: MessageEvent<WorkerGraphEvent<WorkerGraphNodeData>>) => {
   switch (e.data.type) {
     case 'init':
       init(e.data);

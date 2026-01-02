@@ -152,13 +152,6 @@ const graphControls: ControlsConfig<GraphConfig> = [
     show: ({ useQuadtree }) => useQuadtree,
   },
   {
-    key: 'isTree',
-    type: 'checkbox',
-    label: 'Tree',
-    defaultValue: false,
-    isStructural: false,
-  },
-  {
     key: 'animate',
     type: 'checkbox',
     label: 'Animate',

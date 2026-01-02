@@ -2,6 +2,7 @@ import { getHSLColors } from '../../color/hsl_color';
 import CanvasRenderer from '../../renderers/CanvasRenderer';
 import { ColorValue } from '../../types/color.types';
 import { groupDimension } from '../../utils/data_utils';
+import EventBus from '../../utils/EventBus';
 import {
   GRAPH_RENDER_CONFIG_DEFAULTS,
   GraphData,
@@ -9,7 +10,9 @@ import {
 } from './Graph.types';
 import Graph from './Graph.vis';
 
-export default class GraphCanvas<TNodeData> {
+export default class GraphCanvas<TNodeData> extends EventBus<{
+  click: { x: number; y: number; node?: TNodeData | null };
+}> {
   renderer: CanvasRenderer;
   config: GraphRenderConfig<TNodeData>;
 
@@ -22,6 +25,8 @@ export default class GraphCanvas<TNodeData> {
     parentElement: HTMLElement,
     config: Partial<GraphRenderConfig<TNodeData>> = {}
   ) {
+    super();
+
     this.renderer = new CanvasRenderer(parentElement);
     this.config = Object.assign({}, GRAPH_RENDER_CONFIG_DEFAULTS, config);
     this.setNodeColors();
@@ -64,6 +69,8 @@ export default class GraphCanvas<TNodeData> {
           this.selectedNodeIndex = position.index;
           this.renderer.element.addEventListener('pointermove', onMouseMove);
         }
+      } else {
+        this.emit('click', { x: e.x, y: e.y });
       }
     });
   }

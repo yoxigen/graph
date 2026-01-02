@@ -5,9 +5,10 @@ import {
   WeightedCenter,
 } from '../../types/position.types';
 import CoordinatesList from '../../utils/CoordinatesList';
-import EventBus from '../../utils/EventBus';
 import { getDistanceBetweenCoordinates } from '../../utils/position_utils';
 import QuadTree from '../../utils/QuadTree';
+import DataProvider from '../DataProvider';
+import Visualization from '../Visualization';
 import GraphPositions from './Graph.positions';
 import {
   GraphConfig,
@@ -23,16 +24,19 @@ import {
   getGravityForce,
   getLinkForce,
 } from './graph_utils';
+import GraphDataProvider from './GraphDataProvider';
 
-export default class Graph<TNodeData extends Object> extends EventBus<{
-  configChange: Partial<GraphConfig>;
-  dataChange: GraphData<TNodeData>;
-  reset: void;
-  tick: void;
-  start: void;
-  stop: void;
-}> {
-  data: GraphData<TNodeData>;
+export default class Graph<TNodeData extends Object> extends Visualization<
+  GraphData<TNodeData>,
+  {
+    configChange: Partial<GraphConfig>;
+    dataChange: GraphData<TNodeData>;
+    reset: void;
+    tick: void;
+    start: void;
+    stop: void;
+  }
+> {
   config: GraphConfig;
   isGenerating: boolean;
   positions: GraphPositions;
@@ -68,21 +72,23 @@ export default class Graph<TNodeData extends Object> extends EventBus<{
     useQuadtree: false,
     allowWorker: true,
     animate: true,
-    isTree: false,
   };
 
   constructor(
     public size: Dimensions,
     config: Partial<GraphConfig> = {},
-    data?: GraphData<TNodeData>
+    data?: GraphDataProvider<TNodeData> | GraphData<TNodeData>
   ) {
-    super();
+    super(data instanceof DataProvider ? data : new DataProvider(data));
 
     this.config = Object.assign({}, Graph.defaultConfig, config);
     this.#setGravityCenter();
-    if (data) {
-      this.setData(data);
-    }
+    this.dataProvider.on('change', data => this.onDataChange(data));
+    this.dataProvider.on('add', e => {
+      console.log('ADD', e);
+      this.data.nodes.push(...e);
+      this.onDataChange(this.data);
+    });
     this.isWorker = self['isGraphWorker'];
   }
 
@@ -113,36 +119,11 @@ export default class Graph<TNodeData extends Object> extends EventBus<{
       gravityCenter: this.gravityCenter,
     });
 
-    if (this.config.isTree) {
-      const padding = 20;
-
-      const levelsSet = new Set<number>();
-      this.data.nodes.forEach(node => {
-        if (
-          'level' in node &&
-          node.level != null &&
-          typeof node.level === 'number'
-        ) {
-          levelsSet.add(Number(node.level));
-        }
-      });
-      if (levelsSet.size) {
-        const levelSize = (this.size[1] - 2 * padding) / (levelsSet.size - 1);
-        for (let i = 0; i < this.nodesCount; i++) {
-          this.positions.setY(
-            i,
-            padding + levelSize * this.data.nodes[i].level
-          );
-        }
-      }
-    }
     this.velocities = new CoordinatesList(this.nodesCount);
     this.isInit = true;
   }
 
-  setData(data: GraphData<TNodeData>) {
-    this.data = data;
-
+  private onDataChange(data: GraphData<TNodeData>) {
     this.alpha = 1;
     this.isInit = false;
     this.quadTree = null;
@@ -324,9 +305,8 @@ export default class Graph<TNodeData extends Object> extends EventBus<{
       for (let nodeIndex = 0; nodeIndex < this.nodesCount; nodeIndex++) {
         const velocityX =
           this.velocities.getX(nodeIndex) * this.alpha * velocityDecay;
-        const velocityY = this.config.isTree
-          ? 0
-          : this.velocities.getY(nodeIndex) * this.alpha * velocityDecay;
+        const velocityY =
+          this.velocities.getY(nodeIndex) * this.alpha * velocityDecay;
 
         this.velocities.set(nodeIndex, velocityX, velocityY);
         if (!this.fixedPositions.has(nodeIndex)) {

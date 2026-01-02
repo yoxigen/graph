@@ -1,6 +1,4 @@
 import type { Coordinates, Vector } from '../../types/position.types';
-import { GraphLink } from './GraphLink';
-import GraphNode from './GraphNode';
 
 export function getGravityForce(
   position: Coordinates,
@@ -28,6 +26,12 @@ export function getForceBetweenNodes(
   // We then divide by distance again to normalize the vector
   const forceMag = charge / distance ** 2;
   const vectorForce = forceMag / distance;
+
+  // Make sure nodes don't get "stuck" together
+  if (dx === 0 && dy === 0) {
+    dx = Math.random() * 0.02;
+    dy = Math.random() * 0.02;
+  }
 
   return [dx * vectorForce, dy * vectorForce];
 }

@@ -1,4 +1,5 @@
 import { Coordinates, Dimensions } from '../../types/position.types';
+import { GraphLink } from './GraphLink';
 
 export type GraphRenderConfig<TNodeData = Object> = {
   nodeRadius: number;
@@ -25,9 +26,26 @@ export type GraphLinkData = {
   target: number;
 };
 
-export type GraphData<TNodeData = Object> = {
-  nodes: TNodeData[];
-  links?: GraphLinkData[];
+export type GraphNodeData<TData> = TData & {
+  /**
+   * Optional initial X position for the node
+   */
+  x?: number;
+
+  /**
+   * Optional initial Y position for the node
+   */
+  y?: number;
+};
+
+export type GraphData<
+  TNodeData,
+  TLinkData = Object,
+  TNode = GraphNodeData<TNodeData>,
+  TLink = TLinkData & GraphLinkData
+> = {
+  nodes: TNode[];
+  links?: TLink[];
 };
 
 export type GraphConfig = {
@@ -48,7 +66,6 @@ export type GraphConfig = {
   minQuadSize: number;
   allowWorker: boolean;
   animate: boolean;
-  isTree: boolean;
 };
 
 export type GraphMessageType = 'init' | 'config';

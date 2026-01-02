@@ -11,15 +11,22 @@ import {
 import dataControls from './config/DataControls';
 import routing from './utils/routing';
 import graphRenderControls from './visualizations/graph/GraphCanvas.controls';
+import GraphDataProvider from './visualizations/graph/GraphDataProvider';
 
 window.addEventListener('load', main);
 
 function main() {
   const rect = document.querySelector('#graph').getBoundingClientRect();
+  const dataProvider = new GraphDataProvider<TestNodeData>({
+    nodes: [],
+    links: [],
+  });
+
   const { data: routingData, config: routingConfig } = routing.state;
   const graph = new Graph<TestNodeData>(
     [rect.width, rect.height],
-    routingConfig
+    routingConfig,
+    dataProvider
   );
 
   const canvasGraph = new GraphCanvas<TestNodeData>(
@@ -29,6 +36,14 @@ function main() {
       nodeColorDimension: 'group',
     }
   );
+
+  canvasGraph.on('click', e => {
+    dataProvider.add({
+      x: e.x,
+      y: e.y,
+      id: +new Date(),
+    });
+  });
 
   routing.on('data', data => dataControls.setData(data));
   routing.on('config', config => {
@@ -74,7 +89,7 @@ function main() {
 
     dataControls.on('data', ({ id, data }) => {
       routing.navigate({ data: id, config: graph.config });
-      graph.setData(data);
+      dataProvider.setData(data);
     });
 
     if (routingData) {
