@@ -25,8 +25,12 @@ import {
   getLinkForce,
 } from './graph_utils';
 import GraphDataProvider from './GraphDataProvider';
+import GraphLinks from './GraphLinks';
 
-export default class Graph<TNodeData extends Object> extends Visualization<
+export default class Graph<
+  TNodeData extends Object,
+  TLinkData
+> extends Visualization<
   GraphData<TNodeData>,
   {
     configChange: Partial<GraphConfig>;
@@ -41,6 +45,8 @@ export default class Graph<TNodeData extends Object> extends Visualization<
   isGenerating: boolean;
   positions: GraphPositions;
   velocities: CoordinatesList;
+
+  private links: GraphLinks<TLinkData>;
 
   /**
    * Keys are node indexes
@@ -77,18 +83,20 @@ export default class Graph<TNodeData extends Object> extends Visualization<
   constructor(
     public size: Dimensions,
     config: Partial<GraphConfig> = {},
-    data?: GraphDataProvider<TNodeData> | GraphData<TNodeData>
+    data?:
+      | GraphDataProvider<TNodeData, TLinkData>
+      | GraphData<TNodeData, TLinkData>
   ) {
     super(data instanceof DataProvider ? data : new DataProvider(data));
 
     this.config = Object.assign({}, Graph.defaultConfig, config);
     this.#setGravityCenter();
     this.dataProvider.on('change', data => this.onDataChange(data));
-    this.dataProvider.on('add', e => {
-      console.log('ADD', e);
-      this.data.nodes.push(...e);
-      this.onDataChange(this.data);
-    });
+    // this.dataProvider.on('add', e => {
+    //   console.log('ADD', e);
+    //   this.data.nodes.push(...e);
+    //   this.onDataChange(this.data);
+    // });
     this.isWorker = self['isGraphWorker'];
   }
 
@@ -123,7 +131,11 @@ export default class Graph<TNodeData extends Object> extends Visualization<
     this.isInit = true;
   }
 
-  private onDataChange(data: GraphData<TNodeData>) {
+  private onDataChange(data: GraphData<TNodeData, TLinkData>) {
+    this.links = new GraphLinks<TLinkData>(data.links, {
+      linkLength: this.config.linkLength,
+      linkStrength: this.config.linkStrength,
+    });
     this.alpha = 1;
     this.isInit = false;
     this.quadTree = null;
@@ -132,6 +144,7 @@ export default class Graph<TNodeData extends Object> extends Visualization<
       links: data.links,
       nodes: data.nodes,
     } as WorkerGraphSetDataEvent<TNodeData>);
+
     this.emit('dataChange', data);
   }
 
@@ -445,20 +458,29 @@ export default class Graph<TNodeData extends Object> extends Visualization<
       }
     }
 
+    const linksGen = this.links.getForceBetweenLinks(this.positions);
+    for (const { sourceForce, targetForce, source, target } of linksGen) {
+      if (!this.fixedPositions.has(source)) {
+        this.addForce(source, sourceForce);
+      }
+      if (!this.fixedPositions.has(target)) {
+        this.subtractForce(target, targetForce);
+      }
+    }
     // Links:
-    this.data.links.forEach(link => {
-      const force = getLinkForce(
-        this.positions.get(link.source),
-        this.positions.get(link.target),
-        this.config.linkStrength,
-        this.config.linkLength
-      );
-      if (!this.fixedPositions.has(link.source)) {
-        this.addForce(link.source, force);
-      }
-      if (!this.fixedPositions.has(link.target)) {
-        this.subtractForce(link.target, force);
-      }
-    });
+    // this.data.links.forEach(link => {
+    //   const force = getLinkForce(
+    //     this.positions.get(link.source),
+    //     this.positions.get(link.target),
+    //     this.config.linkStrength,
+    //     this.config.linkLength
+    //   );
+    //   if (!this.fixedPositions.has(link.source)) {
+    //     this.addForce(link.source, force);
+    //   }
+    //   if (!this.fixedPositions.has(link.target)) {
+    //     this.subtractForce(link.target, force);
+    //   }
+    // });
   }
 }
