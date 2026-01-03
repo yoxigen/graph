@@ -1,24 +1,25 @@
 import { Coordinates, Dimensions } from '../../types/position.types';
 import { GraphLink } from './GraphLink';
+import { GraphLinksConfig } from './GraphLinks';
 
 export type GraphRenderConfig<TNodeData = Object> = {
   nodeRadius: number;
   linkWidth: number;
   linkColor: string;
   warmupIterations: number;
-  animate: boolean;
   nodeColor?: string;
   nodeColorDimension?: keyof TNodeData;
+  fixNodesOnDrag: boolean;
 };
 
 export const GRAPH_RENDER_CONFIG_DEFAULTS: GraphRenderConfig = {
   nodeRadius: 4,
-  linkWidth: 1,
-  linkColor: '#a9a9a9',
+  linkWidth: 0.5,
+  linkColor: '#999999',
   warmupIterations: 50,
-  animate: true,
   nodeColor: 'black',
   nodeColorDimension: null,
+  fixNodesOnDrag: true,
 };
 
 export type GraphLinkData = {
@@ -48,14 +49,12 @@ export type GraphData<
   links?: TLink[];
 };
 
-export type GraphConfig = {
+export type GraphConfig = GraphLinksConfig & {
   charge: number;
   gravityForce: number;
   gravityCenter: Coordinates;
   minDistance: number;
   minEnergy: number;
-  linkStrength: number;
-  linkLength: number;
   friction: number;
   warmupIterations: number;
   alphaDecay: number;

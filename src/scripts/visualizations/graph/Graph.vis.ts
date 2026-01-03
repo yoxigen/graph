@@ -19,11 +19,7 @@ import {
   WorkerGraphSetDataEvent,
   WorkerGraphFixNodePositionEvent,
 } from './Graph.types';
-import {
-  getForceBetweenNodes,
-  getGravityForce,
-  getLinkForce,
-} from './graph_utils';
+import { getForceBetweenNodes, getGravityForce } from './graph_utils';
 import GraphDataProvider from './GraphDataProvider';
 import GraphLinks from './GraphLinks';
 
@@ -31,7 +27,7 @@ export default class Graph<
   TNodeData extends Object,
   TLinkData
 > extends Visualization<
-  GraphData<TNodeData>,
+  GraphData<TNodeData, TLinkData>,
   {
     configChange: Partial<GraphConfig>;
     dataChange: GraphData<TNodeData>;
@@ -61,23 +57,24 @@ export default class Graph<
   private isWorker = false;
 
   static defaultConfig: GraphConfig = {
-    charge: 500,
+    charge: 30,
     gravityForce: 0.01,
     minDistance: 12, // Prevents "infinite" force when nodes overlap
     minEnergy: 0.2,
-    linkStrength: 0.1,
-    linkLength: 20,
+    linkLength: 30,
     friction: 0.4,
     warmupIterations: 0,
     gravityCenter: [0.5, 0.5],
-    alphaMin: 0,
-    alphaDecay: 0.017,
+    alphaMin: 0.01,
+    alphaDecay: 0.0227,
     randomizePositions: false,
     minQuadSize: 3,
     theta: 1,
     useQuadtree: false,
     allowWorker: true,
     animate: true,
+    autoLinkStrength: true,
+    linkStrength: 1,
   };
 
   constructor(
@@ -127,15 +124,22 @@ export default class Graph<
       gravityCenter: this.gravityCenter,
     });
 
+    this.data.nodes.forEach((node, i) => {
+      if (node.x != null) {
+        this.positions.setX(i, node.x * this.size[0]);
+      }
+
+      if (node.y != null) {
+        this.positions.setY(i, node.y * this.size[1]);
+      }
+    });
     this.velocities = new CoordinatesList(this.nodesCount);
     this.isInit = true;
   }
 
   private onDataChange(data: GraphData<TNodeData, TLinkData>) {
-    this.links = new GraphLinks<TLinkData>(data.links, {
-      linkLength: this.config.linkLength,
-      linkStrength: this.config.linkStrength,
-    });
+    this.links = new GraphLinks<TLinkData>(data.links, this.config);
+    this.fixedPositions.clear();
     this.alpha = 1;
     this.isInit = false;
     this.quadTree = null;
@@ -158,6 +162,7 @@ export default class Graph<
       if (key === 'gravityCenter') {
         this.#setGravityCenter();
       }
+      this.links.setConfig(this.config);
 
       if (notifyChange) {
         this.alpha = 1;
@@ -457,30 +462,6 @@ export default class Graph<
         }
       }
     }
-
-    const linksGen = this.links.getForceBetweenLinks(this.positions);
-    for (const { sourceForce, targetForce, source, target } of linksGen) {
-      if (!this.fixedPositions.has(source)) {
-        this.addForce(source, sourceForce);
-      }
-      if (!this.fixedPositions.has(target)) {
-        this.subtractForce(target, targetForce);
-      }
-    }
-    // Links:
-    // this.data.links.forEach(link => {
-    //   const force = getLinkForce(
-    //     this.positions.get(link.source),
-    //     this.positions.get(link.target),
-    //     this.config.linkStrength,
-    //     this.config.linkLength
-    //   );
-    //   if (!this.fixedPositions.has(link.source)) {
-    //     this.addForce(link.source, force);
-    //   }
-    //   if (!this.fixedPositions.has(link.target)) {
-    //     this.subtractForce(link.target, force);
-    //   }
-    // });
+    this.links.addForceBetweenLinks(this.positions, this.velocities);
   }
 }

@@ -10,7 +10,7 @@ import {
 } from './Graph.types';
 import Graph from './Graph.vis';
 
-export default class GraphCanvas<TNodeData> extends EventBus<{
+export default class GraphCanvas<TNodeData, TLinkData> extends EventBus<{
   click: { x: number; y: number; node?: TNodeData | null };
 }> {
   renderer: CanvasRenderer;
@@ -21,7 +21,7 @@ export default class GraphCanvas<TNodeData> extends EventBus<{
   private selectedNodeIndex: number;
 
   constructor(
-    public graph: Graph<TNodeData>,
+    public graph: Graph<TNodeData, TLinkData>,
     parentElement: HTMLElement,
     config: Partial<GraphRenderConfig<TNodeData>> = {}
   ) {
@@ -58,6 +58,9 @@ export default class GraphCanvas<TNodeData> extends EventBus<{
 
     this.renderer.element.addEventListener('pointerup', () => {
       this.renderer.element.removeEventListener('pointermove', onMouseMove);
+      if (!this.config.fixNodesOnDrag) {
+        graph.unfixNodePosition(this.selectedNodeIndex);
+      }
       this.selectedNodeIndex = null;
     });
     this.renderer.element.addEventListener('pointerdown', e => {

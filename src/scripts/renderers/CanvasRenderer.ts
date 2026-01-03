@@ -18,8 +18,10 @@ export default class CanvasRenderer extends Renderer {
     const canvas = document.createElement('canvas');
     canvas.width = rect.width * dpi;
     canvas.height = rect.height * dpi;
+    canvas.style.width = canvas.style.height = '100%';
     this.parentElement.appendChild(canvas);
     this.ctx = canvas.getContext('2d');
+    this.ctx.scale(devicePixelRatio, devicePixelRatio);
     this.element = canvas;
     canvas.style.touchAction = 'none';
   }

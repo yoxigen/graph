@@ -8,10 +8,10 @@ const graphControls: ControlsConfig<GraphConfig> = [
     label: 'Charge',
     attr: {
       min: 0,
-      max: 1500,
-      step: 50,
+      max: 300,
+      step: 1,
     },
-    defaultValue: 500,
+    defaultValue: 30,
     isStructural: true,
   },
   {
@@ -51,15 +51,22 @@ const graphControls: ControlsConfig<GraphConfig> = [
     isStructural: true,
   },
   {
+    key: 'autoLinkStrength',
+    type: 'checkbox',
+    label: 'Auto link strength',
+    defaultValue: true,
+  },
+  {
     key: 'linkStrength',
     type: 'range',
     label: 'Link strength',
     attr: {
-      min: 0,
+      min: 0.01,
       max: 1,
       step: 0.01,
     },
-    defaultValue: 0.1,
+    show: ({ autoLinkStrength }) => !autoLinkStrength,
+    defaultValue: 1,
     isStructural: true,
   },
   {
@@ -69,9 +76,9 @@ const graphControls: ControlsConfig<GraphConfig> = [
     attr: {
       min: 0,
       max: 0.9,
-      step: 0.01,
+      step: 0.001,
     },
-    defaultValue: 0,
+    defaultValue: 0.001,
     isStructural: true,
   },
   {
