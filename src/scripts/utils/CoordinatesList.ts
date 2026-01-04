@@ -8,8 +8,12 @@ export default class CoordinatesList {
   constructor(size?: number);
   constructor(values: Coordinates[]);
   constructor(buffer: ArrayBuffer);
-  constructor(v: number | Coordinates[] | ArrayBuffer) {
-    if (v instanceof Array) {
+  constructor(coordinatesList: CoordinatesList);
+  constructor(v: number | Coordinates[] | ArrayBuffer | CoordinatesList) {
+    if (v instanceof CoordinatesList) {
+      this.values = v.values;
+      this.size = v.size;
+    } else if (v instanceof Array) {
       this.values = new Float16Array(v.length * 2);
       v.forEach((pos, i) => this.set(i, pos[0], pos[1]));
       this.size = v.length;

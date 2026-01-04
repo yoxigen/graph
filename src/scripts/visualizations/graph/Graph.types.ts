@@ -1,11 +1,11 @@
 import { Coordinates, Dimensions } from '../../types/position.types';
-import { GraphLinksConfig } from './GraphLinks';
+import CoordinatesList from '../../utils/CoordinatesList';
+import { GraphLinksConfig } from './forces/GraphLinks';
 
 export type GraphRenderConfig<TNodeData = Object> = {
   nodeRadius: number;
   linkWidth: number;
   linkColor: string;
-  warmupIterations: number;
   nodeColor?: string;
   nodeColorDimension?: keyof TNodeData;
   fixNodesOnDrag: boolean;
@@ -15,10 +15,9 @@ export const GRAPH_RENDER_CONFIG_DEFAULTS: GraphRenderConfig = {
   nodeRadius: 4,
   linkWidth: 0.5,
   linkColor: '#999999',
-  warmupIterations: 50,
   nodeColor: 'black',
   nodeColorDimension: null,
-  fixNodesOnDrag: true,
+  fixNodesOnDrag: false,
 };
 
 export type GraphLinkData = {
@@ -64,6 +63,7 @@ export type GraphConfig = GraphLinksConfig & {
   minQuadSize: number;
   allowWorker: boolean;
   animate: boolean;
+  ticks?: number;
 };
 
 export type GraphMessageType = 'init' | 'config';
@@ -144,3 +144,11 @@ export type GraphEndEvent = {
 };
 
 export type MessageEventFromWorker = GraphTickEvent | GraphEndEvent;
+
+export interface IGraphForce {
+  apply: (
+    positions: CoordinatesList,
+    velocities: CoordinatesList,
+    fixedPositions: Map<number, Coordinates>
+  ) => void;
+}

@@ -19,9 +19,11 @@ import {
   WorkerGraphSetDataEvent,
   WorkerGraphFixNodePositionEvent,
 } from './Graph.types';
-import { getForceBetweenNodes, getGravityForce } from './graph_utils';
+import { getForceBetweenNodes } from './graph_utils';
 import GraphDataProvider from './GraphDataProvider';
-import GraphLinks from './GraphLinks';
+import GraphGravity from './forces/GraphGravity';
+import GraphLinks from './forces/GraphLinks';
+import GraphPositionForce from './forces/GraphPositionForce';
 
 export default class Graph<
   TNodeData extends Object,
@@ -43,6 +45,8 @@ export default class Graph<
   velocities: CoordinatesList;
 
   private links: GraphLinks<TLinkData>;
+  private gravity: GraphGravity;
+  private positionForce: GraphPositionForce;
 
   /**
    * Keys are node indexes
@@ -63,14 +67,14 @@ export default class Graph<
     minEnergy: 0.2,
     linkLength: 30,
     friction: 0.4,
-    warmupIterations: 0,
+    warmupIterations: 20,
     gravityCenter: [0.5, 0.5],
     alphaMin: 0.01,
-    alphaDecay: 0.0227,
+    alphaDecay: 0.01,
     randomizePositions: false,
-    minQuadSize: 3,
+    minQuadSize: 2,
     theta: 1,
-    useQuadtree: false,
+    useQuadtree: true,
     allowWorker: true,
     animate: true,
     autoLinkStrength: true,
@@ -117,6 +121,18 @@ export default class Graph<
       this.size[0] * this.config.gravityCenter[0],
       this.size[1] * this.config.gravityCenter[1],
     ];
+    this.gravity = new GraphGravity(
+      this.gravityCenter
+      // this.config.gravityForce
+    );
+
+    this.positionForce = this.config.gravityForce
+      ? new GraphPositionForce(this.data.nodes, {
+          x: this.size[0] / 2,
+          y: this.size[1] / 2,
+          strength: this.config.gravityForce,
+        })
+      : null;
   }
 
   reset() {
@@ -170,7 +186,7 @@ export default class Graph<
   ): boolean {
     if (this.config[key] !== value) {
       (this.config[key] as GraphConfig[typeof key]) = value;
-      if (key === 'gravityCenter') {
+      if (key === 'gravityCenter' || key === 'gravityForce') {
         this.#setGravityCenter();
       }
       this.links.setConfig(this.config);
@@ -315,17 +331,20 @@ export default class Graph<
     const velocityDecay = 1 - this.config.friction;
     const allowWarmup = !this.isInit;
 
+    let count = 0;
     if (!this.isInit) {
       this.initPositions();
+      this.emit('tick', null);
+      count++;
     }
 
     let totalEnergy = Infinity;
-    let count = 0;
     this.alpha = 1;
 
     while (
       totalEnergy > this.config.minEnergy &&
-      this.alpha >= this.config.alphaMin
+      this.alpha >= this.config.alphaMin &&
+      (!this.config.ticks || count < this.config.ticks)
     ) {
       totalEnergy = 0;
 
@@ -426,20 +445,23 @@ export default class Graph<
       this.createQuadTree();
     }
 
-    this.links.addForceBetweenLinks(this.positions, this.velocities);
+    this.links.apply(this.positions, this.velocities);
+    this.positionForce?.apply(this.positions, this.velocities);
+    this.gravity.apply(this.positions, this.velocities, this.fixedPositions);
+
     // Nodes gravity and repulsion between each other:
     for (let i = 0; i < this.nodesCount; i++) {
       const isFixed = this.fixedPositions.has(i);
       const nodePosition = this.positions.get(i);
 
-      if (!isFixed) {
-        const gravityForce = getGravityForce(
-          nodePosition,
-          this.gravityCenter,
-          this.config.gravityForce
-        );
-        this.addForce(i, gravityForce);
-      }
+      // if (!isFixed) {
+      //   const gravityForce = getGravityForce(
+      //     nodePosition,
+      //     this.gravityCenter,
+      //     this.config.gravityForce
+      //   );
+      //   this.addForce(i, gravityForce);
+      // }
       if (this.config.useQuadtree) {
         if (!isFixed) {
           const generateWeightedCenters = this.generateForceCoordinates(

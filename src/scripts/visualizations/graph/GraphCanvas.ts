@@ -9,7 +9,6 @@ import {
   GraphRenderConfig,
 } from './Graph.types';
 import Graph from './Graph.vis';
-
 export default class GraphCanvas<TNodeData, TLinkData = {}> extends EventBus<{
   click: { x: number; y: number; node?: TNodeData | null };
 }> {

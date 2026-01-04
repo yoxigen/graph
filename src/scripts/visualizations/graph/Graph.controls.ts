@@ -20,7 +20,7 @@ const graphControls: ControlsConfig<GraphConfig> = [
     label: 'Central gravity',
     attr: {
       min: 0,
-      max: 0.1,
+      max: 1,
       step: 0.001,
     },
     defaultValue: 0.01,
@@ -48,6 +48,18 @@ const graphControls: ControlsConfig<GraphConfig> = [
       step: 1,
     },
     defaultValue: 15,
+    isStructural: true,
+  },
+  {
+    key: 'iterations',
+    type: 'range',
+    label: 'Link rigidity',
+    attr: {
+      min: 1,
+      max: 20,
+      step: 1,
+    },
+    defaultValue: 1,
     isStructural: true,
   },
   {

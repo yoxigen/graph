@@ -165,9 +165,7 @@ function render() {
     scheduler
       .postTask(
         () => {
-          while (!generator.next().done) {
-            console.log('TICK');
-          }
+          while (!generator.next().done);
           notifyTick();
           notifyEnd();
           console.log('TIME', performance.now() - start);

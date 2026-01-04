@@ -12,6 +12,9 @@ export type GraphPositionsOptions = {
   | { positions: null; size: number }
 );
 
+const goldenRatio = (1 + Math.sqrt(5)) / 2;
+const PHYLLOTAXIS_THETA = (2 * Math.PI) / goldenRatio;
+
 const DEFAULT_GRAPH_POSITIONS_OPTIONS: GraphPositionsOptions = {
   randomizeInitialPositions: false,
   gravityCenter: [0, 0],
@@ -41,20 +44,46 @@ export default class GraphPositions extends CoordinatesList {
         for (let i = 0; i < this.size; i++) {
           this.set(
             i,
-            options.gravityCenter[0] + (Math.random() - 0.5) * 80,
-            options.gravityCenter[1] + (Math.random() - 0.5) * 80
+            options.gravityCenter[0] +
+              Math.cos(Math.random() * Math.PI * 2) * Math.random() * 200,
+            options.gravityCenter[1] +
+              Math.sin(Math.random() * Math.PI * 2) * Math.random() * 200
           );
         }
       } else {
-        const angle = (Math.PI * 2) / this.size;
-        for (let i = 0; i < this.size; i++) {
-          this.set(
-            i,
-            options.gravityCenter[0] + 50 * Math.cos(angle * i),
-            options.gravityCenter[1] + 50 * Math.sin(angle * i)
-          );
+        const isPhyllotaxis = true;
+        if (isPhyllotaxis) {
+          this.setPhyllotaxisPositions(this.size, {
+            center: options.gravityCenter,
+            radius: 10,
+          });
+        } else {
+          const angle = (Math.PI * 2) / this.size;
+          for (let i = 0; i < this.size; i++) {
+            this.set(
+              i,
+              options.gravityCenter[0] + 150 * Math.cos(angle * i),
+              options.gravityCenter[1] + 150 * Math.sin(angle * i)
+            );
+          }
         }
       }
+    }
+  }
+
+  private setPhyllotaxisPositions(
+    n: number,
+    { radius = 1, center: [cx, cy] = [0, 0], thetaOffset = 1.49 } = {}
+  ) {
+    for (let i = 0; i < n; i++) {
+      const scaledTheta = PHYLLOTAXIS_THETA * i;
+      const scaledRadius = radius * Math.sqrt(scaledTheta + thetaOffset);
+
+      this.set(
+        i,
+        Math.cos(scaledTheta) * scaledRadius + cx,
+        Math.sin(scaledTheta) * scaledRadius + cy
+      );
     }
   }
 }

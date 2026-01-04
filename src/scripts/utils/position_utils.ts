@@ -4,6 +4,7 @@ import {
   Dimensions,
   Vector,
 } from '../types/position.types';
+import CoordinatesList from './CoordinatesList';
 
 export function mapVector(
   vector: Vector,
@@ -67,4 +68,22 @@ export function getDistanceBetweenCoordinates(
   c2: Coordinates
 ): number {
   return Math.hypot(c2[0] - c1[0], c2[1] - c1[1]);
+}
+
+const goldenRatio = (1 + Math.sqrt(5)) / 2;
+const PHYLLOTAXIS_THETA = (2 * Math.PI) / goldenRatio;
+
+export function getPhyllotaxisPositions(
+  n: number,
+  { radius = 1, center: [cx, cy] = [0, 0], thetaOffset = 1.49 } = {}
+): CoordinatesList {
+  const positions = new CoordinatesList(n);
+  for (let i = 0; i < n; i++) {
+    const scaledTheta = PHYLLOTAXIS_THETA * i;
+    const scaledRadius = radius * Math.sqrt(scaledTheta + thetaOffset);
+
+    positions.setX(i, Math.cos(scaledTheta) * scaledRadius + cx);
+    positions.setY(i, Math.sin(scaledTheta) * scaledRadius + cy);
+  }
+  return positions;
 }

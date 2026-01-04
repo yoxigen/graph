@@ -4,6 +4,7 @@ import simple from '../test_data/simple';
 import tree from '../test_data/tree_test_data';
 import grid from '../test_data/grid_test_data';
 import central from '../test_data/central_test_data';
+import chain from '../test_data/chain_test_data';
 import { ID } from '../scripts/types/general.types';
 import {
   GraphData,
@@ -24,6 +25,7 @@ const testData: TestData[] = [
   { id: 'tree', name: 'Tree', data: tree },
   { id: 'grid', name: 'Grid', data: grid },
   { id: 'central', name: 'Central', data: central },
+  { id: 'chain', name: 'Chain', data: chain },
 ].map(({ id, name, data }) => ({
   id,
   name,

@@ -1,6 +1,6 @@
-import CoordinatesList from '../../utils/CoordinatesList';
-import GraphPositions from './Graph.positions';
-import { GraphLinkData } from './Graph.types';
+import CoordinatesList from '../../../utils/CoordinatesList';
+import GraphPositions from '../Graph.positions';
+import { GraphLinkData, IGraphForce } from '../Graph.types';
 
 export type GraphLinksConfig = {
   linkLength: number;
@@ -16,7 +16,7 @@ const DEFAULT_CONFIG: GraphLinksConfig = {
   iterations: 1,
 };
 
-export default class GraphLinks<TLinkData = {}> {
+export default class GraphLinks<TLinkData = {}> implements IGraphForce {
   private strengths: number[];
   private bias: number[];
   config: GraphLinksConfig;
@@ -60,7 +60,7 @@ export default class GraphLinks<TLinkData = {}> {
     });
   }
 
-  addForceBetweenLinks(positions: GraphPositions, velocities: CoordinatesList) {
+  apply(positions: GraphPositions, velocities: CoordinatesList) {
     for (let k = 0; k < this.config.iterations; k++) {
       for (let i = 0, link: GraphLinkData; i < this.data.length; i++) {
         link = this.data[i];
