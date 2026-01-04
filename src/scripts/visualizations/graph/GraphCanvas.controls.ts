@@ -20,6 +20,12 @@ const graphRenderControls: ControlsConfig<GraphRenderConfig<TestNodeData>> = [
     type: 'color',
     label: 'Link color',
   },
+  {
+    key: 'fixNodesOnDrag',
+    type: 'checkbox',
+    label: 'Fix nodes on drag',
+    defaultValue: true,
+  },
 ];
 
 export default graphRenderControls;

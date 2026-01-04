@@ -1,35 +1,36 @@
-import { ID } from '../types/general.types';
 import { Coordinates, Dimensions } from '../types/position.types';
 import Renderer, { RendererOptions } from './Renderer';
 
 export default class CanvasRenderer extends Renderer {
+  protected canvas: HTMLCanvasElement;
   protected ctx: CanvasRenderingContext2D;
-  private size: Dimensions = [0, 0];
 
   constructor(
     parentElement: HTMLElement,
     options: Partial<RendererOptions> = {}
   ) {
     super(parentElement, options);
-    const rect = this.parentElement.getBoundingClientRect();
-    this.size = [rect.width, rect.height];
 
-    const dpi = devicePixelRatio;
-    const canvas = document.createElement('canvas');
-    canvas.width = rect.width * dpi;
-    canvas.height = rect.height * dpi;
+    const canvas = (this.canvas = document.createElement('canvas'));
     this.parentElement.appendChild(canvas);
     this.ctx = canvas.getContext('2d');
+    this.setCanvasSize(this.size);
     this.element = canvas;
     canvas.style.touchAction = 'none';
+    this.on('resize', size => this.setCanvasSize(size));
+  }
+
+  private setCanvasSize(size: Dimensions) {
+    const dpi = devicePixelRatio;
+    this.canvas.width = size[0] * dpi;
+    this.canvas.height = size[1] * dpi;
+    this.canvas.style.setProperty('width', `${size[0]}px`);
+    this.canvas.style.setProperty('height', `${size[1]}px`);
+    this.ctx.scale(devicePixelRatio, devicePixelRatio);
   }
 
   clear() {
     this.ctx.clearRect(0, 0, ...this.size);
-  }
-
-  getSize(): Dimensions {
-    return this.size;
   }
 
   drawCircle(

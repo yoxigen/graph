@@ -39,7 +39,6 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent<WorkerGraphNodeData>>) => {
       render();
       break;
     case 'setConfigValue':
-      console.log('config value');
       clearTimeout(tickTimeout);
       graph.setConfigValue(e.data.key, e.data.value);
       // if (!graph.isGenerating) {
@@ -63,6 +62,12 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent<WorkerGraphNodeData>>) => {
     case 'unfixAllNodePositions':
       graph.unfixAllNodePositions();
       render();
+      break;
+    case 'setSize':
+      clearTimeout(tickTimeout);
+      graph.setSize(e.data.size);
+      render();
+      break;
   }
 };
 

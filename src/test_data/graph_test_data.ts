@@ -2,6 +2,8 @@ import miserables from '../test_data/miserables.json';
 import essays from '../test_data/essays.json';
 import simple from '../test_data/simple';
 import tree from '../test_data/tree_test_data';
+import grid from '../test_data/grid_test_data';
+import central from '../test_data/central_test_data';
 import { ID } from '../scripts/types/general.types';
 import {
   GraphData,
@@ -20,6 +22,8 @@ const testData: TestData[] = [
   { id: 'essays', name: 'Essays', data: essays },
   { id: 'simple', name: 'Simple data', data: simple },
   { id: 'tree', name: 'Tree', data: tree },
+  { id: 'grid', name: 'Grid', data: grid },
+  { id: 'central', name: 'Central', data: central },
 ].map(({ id, name, data }) => ({
   id,
   name,
