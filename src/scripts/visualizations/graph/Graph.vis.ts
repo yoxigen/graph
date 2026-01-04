@@ -25,7 +25,7 @@ import GraphLinks from './GraphLinks';
 
 export default class Graph<
   TNodeData extends Object,
-  TLinkData
+  TLinkData = {}
 > extends Visualization<
   GraphData<TNodeData, TLinkData>,
   {
@@ -75,6 +75,7 @@ export default class Graph<
     animate: true,
     autoLinkStrength: true,
     linkStrength: 1,
+    iterations: 1,
   };
 
   constructor(
@@ -99,6 +100,16 @@ export default class Graph<
 
   get nodesCount(): number {
     return this.data?.nodes.length ?? 0;
+  }
+
+  setSize(size: Dimensions) {
+    if (this.size[0] !== size[0] || this.size[1] !== size[1]) {
+      this.size = size;
+      this.#setGravityCenter();
+      this.alpha = 1;
+    }
+
+    this.worker?.postMessage({ type: 'setSize', size });
   }
 
   #setGravityCenter() {
@@ -318,7 +329,7 @@ export default class Graph<
     ) {
       totalEnergy = 0;
 
-      this.updateForces();
+      this.applyForces();
 
       for (let nodeIndex = 0; nodeIndex < this.nodesCount; nodeIndex++) {
         const velocityX =
@@ -348,6 +359,7 @@ export default class Graph<
       count++;
     }
 
+    console.log('TICKS: ', count);
     this.isGenerating = false;
     this.velocities.fill(0);
     this.emit('stop', null);
@@ -407,13 +419,14 @@ export default class Graph<
     });
   }
 
-  private updateForces() {
+  private applyForces() {
     let count = 0;
 
     if (this.config.useQuadtree) {
       this.createQuadTree();
     }
 
+    this.links.addForceBetweenLinks(this.positions, this.velocities);
     // Nodes gravity and repulsion between each other:
     for (let i = 0; i < this.nodesCount; i++) {
       const isFixed = this.fixedPositions.has(i);
@@ -462,6 +475,5 @@ export default class Graph<
         }
       }
     }
-    this.links.addForceBetweenLinks(this.positions, this.velocities);
   }
 }

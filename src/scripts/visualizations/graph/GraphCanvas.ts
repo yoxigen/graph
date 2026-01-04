@@ -10,7 +10,7 @@ import {
 } from './Graph.types';
 import Graph from './Graph.vis';
 
-export default class GraphCanvas<TNodeData, TLinkData> extends EventBus<{
+export default class GraphCanvas<TNodeData, TLinkData = {}> extends EventBus<{
   click: { x: number; y: number; node?: TNodeData | null };
 }> {
   renderer: CanvasRenderer;
@@ -56,6 +56,13 @@ export default class GraphCanvas<TNodeData, TLinkData> extends EventBus<{
       graph.fixNodePosition(this.selectedNodeIndex!, e.x, e.y);
     };
 
+    this.renderer.on('resize', size => {
+      graph.setSize(size);
+      this.draw();
+      if (!graph.isGenerating) {
+        this.render();
+      }
+    });
     this.renderer.element.addEventListener('pointerup', () => {
       this.renderer.element.removeEventListener('pointermove', onMouseMove);
       if (!this.config.fixNodesOnDrag) {

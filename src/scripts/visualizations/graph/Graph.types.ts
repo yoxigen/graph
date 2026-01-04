@@ -1,5 +1,4 @@
 import { Coordinates, Dimensions } from '../../types/position.types';
-import { GraphLink } from './GraphLink';
 import { GraphLinksConfig } from './GraphLinks';
 
 export type GraphRenderConfig<TNodeData = Object> = {
@@ -118,6 +117,11 @@ export type WorkerGraphUnfixAllNodePositionsEvent = {
   type: 'unfixAllNodePositions';
 };
 
+export type WorkerGraphSetSizeEvent = {
+  type: 'setSize';
+  size: Dimensions;
+};
+
 export type WorkerGraphEvent<TNodeData extends Object> =
   | WorkerGraphInitEvent<TNodeData>
   | WorkerGraphConfigChangeEvent
@@ -127,7 +131,8 @@ export type WorkerGraphEvent<TNodeData extends Object> =
   | WorkerGraphResetEvent
   | WorkerGraphFixNodePositionEvent
   | WorkerGraphUnfixNodePositionEvent
-  | WorkerGraphUnfixAllNodePositionsEvent;
+  | WorkerGraphUnfixAllNodePositionsEvent
+  | WorkerGraphSetSizeEvent;
 
 export type GraphTickEvent = {
   type: 'tick';

@@ -1,4 +1,3 @@
-import { Vector } from '../../types/position.types';
 import CoordinatesList from '../../utils/CoordinatesList';
 import GraphPositions from './Graph.positions';
 import { GraphLinkData } from './Graph.types';
@@ -7,12 +6,14 @@ export type GraphLinksConfig = {
   linkLength: number;
   autoLinkStrength: boolean;
   linkStrength: number;
+  iterations: number;
 };
 
 const DEFAULT_CONFIG: GraphLinksConfig = {
   linkLength: 30,
   autoLinkStrength: true,
   linkStrength: 1,
+  iterations: 1,
 };
 
 export default class GraphLinks<TLinkData = {}> {
@@ -43,7 +44,7 @@ export default class GraphLinks<TLinkData = {}> {
       linkCountPerNode.set(link.source, sourceCount ? sourceCount + 1 : 1);
       linkCountPerNode.set(link.target, targetCount ? targetCount + 1 : 1);
     }
-    this.strengths = this.data.map((link, i) =>
+    this.strengths = this.data.map(link =>
       this.config.autoLinkStrength
         ? 1 /
           Math.min(
@@ -53,18 +54,14 @@ export default class GraphLinks<TLinkData = {}> {
         : this.config.linkStrength
     );
 
-    this.bias = this.data.map((link, i) => {
+    this.bias = this.data.map(link => {
       const sourceCount = linkCountPerNode.get(link.source);
       return sourceCount / (sourceCount + linkCountPerNode.get(link.target));
     });
   }
 
-  addForceBetweenLinks(
-    positions: GraphPositions,
-    velocities: CoordinatesList,
-    alpha: number
-  ) {
-    for (let k = 0; k < 1; k++) {
+  addForceBetweenLinks(positions: GraphPositions, velocities: CoordinatesList) {
+    for (let k = 0; k < this.config.iterations; k++) {
       for (let i = 0, link: GraphLinkData; i < this.data.length; i++) {
         link = this.data[i];
         const sourcePosition = positions.get(link.source);
