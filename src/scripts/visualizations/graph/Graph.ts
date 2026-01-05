@@ -24,6 +24,7 @@ import GraphDataProvider from './GraphDataProvider';
 import GraphGravity from './forces/GraphGravity';
 import GraphLinks from './forces/GraphLinks';
 import GraphPositionForce from './forces/GraphPositionForce';
+import GraphCollideForce from './forces/GraphCollideForce';
 
 export default class Graph<
   TNodeData extends Object,
@@ -39,7 +40,7 @@ export default class Graph<
     stop: void;
   }
 > {
-  config: GraphConfig;
+  config: GraphConfig<TNodeData>;
   isGenerating: boolean;
   positions: GraphPositions;
   velocities: CoordinatesList;
@@ -47,6 +48,7 @@ export default class Graph<
   private links: GraphLinks<TLinkData>;
   private gravity: GraphGravity;
   private positionForce: GraphPositionForce;
+  private collideForce: GraphCollideForce<TNodeData>;
 
   /**
    * Keys are node indexes
@@ -80,14 +82,16 @@ export default class Graph<
     autoLinkStrength: true,
     linkStrength: 1,
     iterations: 1,
+    radius: 4,
   };
 
   constructor(
     public size: Dimensions,
-    config: Partial<GraphConfig> = {},
+    config: Partial<GraphConfig<TNodeData>> = {},
     data?:
       | GraphDataProvider<TNodeData, TLinkData>
-      | GraphData<TNodeData, TLinkData>
+      | GraphData<TNodeData, TLinkData>,
+    private nodesRadius?: Float16Array
   ) {
     super(data instanceof DataProvider ? data : new DataProvider(data));
 
@@ -104,6 +108,11 @@ export default class Graph<
 
   get nodesCount(): number {
     return this.data?.nodes.length ?? 0;
+  }
+
+  setNodesRadius(nodesRadius: Float16Array) {
+    this.nodesRadius = nodesRadius;
+    this.collideForce?.setNodesRadius(nodesRadius);
   }
 
   setSize(size: Dimensions) {
@@ -164,8 +173,23 @@ export default class Graph<
     this.isInit = true;
   }
 
+  private getNodesRadiusForMessage(): ArrayBuffer | null {
+    const { radius } = this.config;
+    return radius instanceof Function
+      ? new Float16Array(this.data.nodes.map(n => radius(n))).buffer
+      : null;
+  }
   private onDataChange(data: GraphData<TNodeData, TLinkData>) {
     this.links = new GraphLinks<TLinkData>(data.links, this.config);
+    this.collideForce = new GraphCollideForce<TNodeData>(
+      data.nodes,
+      this.nodesRadius,
+      {
+        radius: this.config.radius,
+        strength: 1,
+      }
+    );
+
     this.fixedPositions.clear();
     this.alpha = 1;
     this.isInit = false;
@@ -174,6 +198,7 @@ export default class Graph<
       type: 'setData',
       links: data.links,
       nodes: data.nodes,
+      nodesRadius: this.getNodesRadiusForMessage(),
     } as WorkerGraphSetDataEvent<TNodeData>);
 
     this.emit('dataChange', data);
@@ -231,9 +256,13 @@ export default class Graph<
     }
   }
 
-  selectNodeAt(x: number, y: number): { index: number; data: TNodeData } {
+  selectNodeAt(
+    x: number,
+    y: number,
+    radius = 20
+  ): { index: number; data: TNodeData } {
     this.createQuadTree();
-    const nodeIndex = this.quadTree.findElementAt(x, y, 10)?.id;
+    const nodeIndex = this.quadTree.findElementAt(x, y, radius)?.id;
     if (nodeIndex != null) {
       return { data: this.data.nodes[nodeIndex], index: nodeIndex };
     }
@@ -284,12 +313,18 @@ export default class Graph<
         type: 'module',
       });
 
+      const { radius } = this.config;
+
       this.worker.postMessage({
         type: 'init',
-        config: this.config,
+        config: {
+          ...this.config,
+          radius: radius instanceof Function ? 0 : radius,
+        },
         dimensions: this.size,
         links: this.data.links,
         nodes: this.data.nodes,
+        nodesRadius: this.getNodesRadiusForMessage(),
       } as WorkerGraphInitEvent<TNodeData>);
 
       this.worker.onmessage = (e: MessageEvent<MessageEventFromWorker>) =>
@@ -304,7 +339,6 @@ export default class Graph<
         this.emit('tick', null);
         break;
       case 'end':
-        console.log('END-------');
         this.isGenerating = false;
         break;
     }
@@ -314,7 +348,6 @@ export default class Graph<
     if (!this.isWorker && !this.isGenerating) {
       //this.isGenerating = true;
       this.initWorker();
-      console.log('start---');
       this.worker.postMessage({ type: 'start' });
     }
   }
@@ -378,7 +411,6 @@ export default class Graph<
       count++;
     }
 
-    console.log('TICKS: ', count);
     this.isGenerating = false;
     this.velocities.fill(0);
     this.emit('stop', null);
@@ -448,6 +480,7 @@ export default class Graph<
     this.links.apply(this.positions, this.velocities);
     this.positionForce?.apply(this.positions, this.velocities);
     this.gravity.apply(this.positions, this.velocities, this.fixedPositions);
+    this.collideForce.apply(this.positions, this.velocities);
 
     // Nodes gravity and repulsion between each other:
     for (let i = 0; i < this.nodesCount; i++) {

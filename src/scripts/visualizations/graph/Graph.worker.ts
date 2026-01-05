@@ -2,7 +2,7 @@
 
 import { TestNodeData } from '../../../test_data/graph_test_data';
 import { WorkerGraphEvent, WorkerGraphInitEvent } from './Graph.types';
-import Graph from './Graph.vis';
+import Graph from './Graph';
 import 'scheduler-polyfill';
 
 type WorkerGraphNodeData = { id: number };
@@ -24,6 +24,9 @@ self.onmessage = (e: MessageEvent<WorkerGraphEvent<WorkerGraphNodeData>>) => {
         links: e.data.links,
         nodes: e.data.nodes,
       });
+      if (e.data.nodesRadius) {
+        graph.setNodesRadius(new Float16Array(e.data.nodesRadius));
+      }
       if (!graph.isGenerating) {
         render();
       }
@@ -95,7 +98,8 @@ function init(e: WorkerGraphInitEvent<TestNodeData>) {
     {
       nodes: e.nodes,
       links: e.links,
-    }
+    },
+    e.nodesRadius ? new Float16Array(e.nodesRadius) : null
   );
 
   graph.on('stop', () => {
@@ -136,8 +140,6 @@ function render() {
             const now = performance.now();
             if (!lastTick || now - lastTick >= frameRate) {
               notifyTick();
-            } else {
-              console.log('NOT NOTIFYING');
             }
             lastTick = now;
 
@@ -154,7 +156,7 @@ function render() {
           }
         )
         .catch(reason => {
-          console.log('ABORTED ANIMATION!');
+          // Aborted
         });
     };
 
@@ -168,14 +170,14 @@ function render() {
           while (!generator.next().done);
           notifyTick();
           notifyEnd();
-          console.log('TIME', performance.now() - start);
+          console.log(`Render time: ${performance.now() - start} ms`);
         },
         {
           signal: taskController.signal,
         }
       )
       .catch(reason => {
-        console.log('ABORTED!');
+        // Aborted
       });
   }
 }

@@ -8,7 +8,8 @@ import {
   GraphData,
   GraphRenderConfig,
 } from './Graph.types';
-import Graph from './Graph.vis';
+import Graph from './Graph';
+import { getValue } from '../../utils/config_utils';
 export default class GraphCanvas<TNodeData, TLinkData = {}> extends EventBus<{
   click: { x: number; y: number; node?: TNodeData | null };
 }> {
@@ -70,7 +71,7 @@ export default class GraphCanvas<TNodeData, TLinkData = {}> extends EventBus<{
       this.selectedNodeIndex = null;
     });
     this.renderer.element.addEventListener('pointerdown', e => {
-      const position = graph.selectNodeAt(e.x, e.y);
+      const position = graph.selectNodeAt(e.x, e.y, 30);
       if (position) {
         if (e.ctrlKey) {
           graph.unfixNodePosition(position.index);
@@ -138,10 +139,11 @@ export default class GraphCanvas<TNodeData, TLinkData = {}> extends EventBus<{
       );
 
       const position = this.graph.positions.get(i);
+      const radius = getValue(this.graph.config.radius, node);
       this.renderer.drawCircle(
         position,
         //Math.max(node.radius ?? this.config.nodeRadius),
-        this.config.nodeRadius,
+        radius,
         this.getNodeColor(node),
         true
       );
