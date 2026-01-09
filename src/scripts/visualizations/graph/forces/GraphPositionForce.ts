@@ -1,6 +1,6 @@
 import { ValueOrFunction } from '../../../types/general.types';
 import CoordinatesList from '../../../utils/CoordinatesList';
-import { IGraphForce } from '../Graph.types';
+import GraphForce from './GraphForce';
 
 export type GraphPositionForceConfig<TNodeData = {}> = {
   x: ValueOrFunction<number, TNodeData>;
@@ -14,9 +14,9 @@ const DEFAULT_CONFIG: GraphPositionForceConfig = {
   strength: 0.1,
 };
 
-export default class GraphPositionForce<TNodeData = {}> implements IGraphForce {
-  config: GraphPositionForceConfig;
-
+export default class GraphPositionForce<TNodeData = {}> extends GraphForce<
+  GraphPositionForceConfig<TNodeData>
+> {
   private nodesForceX: number[] | number;
   private nodesForceY: number[] | number;
 
@@ -24,7 +24,7 @@ export default class GraphPositionForce<TNodeData = {}> implements IGraphForce {
     public readonly nodes: TNodeData[],
     config: Partial<GraphPositionForceConfig>
   ) {
-    this.config = Object.assign({}, DEFAULT_CONFIG, config);
+    super(DEFAULT_CONFIG, config);
 
     if (this.config.x instanceof Function) {
       this.nodesForceX = nodes.map(this.config.x);

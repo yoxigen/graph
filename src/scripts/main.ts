@@ -25,7 +25,7 @@ function main() {
   const { data: routingData, config: routingConfig } = routing.state;
   const graph = new Graph<TestNodeData>(
     [rect.width, rect.height],
-    { ...routingConfig, radius: ({ radius }) => radius ?? 4 },
+    { ...routingConfig, radius: ({ radius }) => Math.max(3, radius ?? 4) },
     dataProvider
   );
 

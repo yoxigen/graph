@@ -13,6 +13,8 @@ body {
   height: 100%;
   overflow: hidden;
   font-family: Roboto, sans-serif;
+  background: #222;
+  color: White;
 }
 
 #graph {

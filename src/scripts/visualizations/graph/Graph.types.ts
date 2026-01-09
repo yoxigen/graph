@@ -1,6 +1,10 @@
 import { ValueOrFunction } from '../../types/general.types';
 import { Coordinates, Dimensions } from '../../types/position.types';
 import CoordinatesList from '../../utils/CoordinatesList';
+import GraphChargeForce, {
+  GraphChargeForceConfig,
+} from './forces/GraphChargeForce';
+import { GraphCollideForceConfig } from './forces/GraphCollideForce';
 import { GraphLinksConfig } from './forces/GraphLinks';
 
 export type GraphRenderConfig<TNodeData = Object> = {
@@ -48,25 +52,22 @@ export type GraphData<
   links?: TLink[];
 };
 
-export type GraphConfig<TNodeData = {}> = GraphLinksConfig & {
-  charge: number;
-  gravityForce: number;
-  gravityCenter: Coordinates;
-  minDistance: number;
-  minEnergy: number;
-  friction: number;
-  warmupIterations: number;
-  alphaDecay: number;
-  alphaMin: number;
-  randomizePositions: boolean;
-  useQuadtree: boolean;
-  theta: number;
-  minQuadSize: number;
-  allowWorker: boolean;
-  animate: boolean;
-  ticks?: number;
-  radius: ValueOrFunction<number, TNodeData>;
-};
+export type GraphConfig<TNodeData = {}> = GraphLinksConfig &
+  GraphChargeForceConfig &
+  GraphCollideForceConfig<TNodeData> & {
+    gravityForce: number;
+    gravityCenter: Coordinates;
+    minEnergy: number;
+    friction: number;
+    warmupIterations: number;
+    alphaDecay: number;
+    alphaMin: number;
+    randomizePositions: boolean;
+    allowWorker: boolean;
+    animate: boolean;
+    ticks?: number;
+    radius: ValueOrFunction<number, TNodeData>;
+  };
 
 export type GraphMessageType = 'init' | 'config';
 

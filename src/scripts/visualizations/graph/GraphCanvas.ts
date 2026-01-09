@@ -132,21 +132,24 @@ export default class GraphCanvas<TNodeData, TLinkData = {}> extends EventBus<{
       );
     });
 
-    this.renderer.setLineWidth(3);
+    this.renderer.setLineWidth(2);
     this.graph.data.nodes.forEach((node, i) => {
+      const position = this.graph.positions.get(i);
       this.renderer.setLineColor(
         i === this.selectedNodeIndex ? 'black' : 'white'
       );
 
-      const position = this.graph.positions.get(i);
       const radius = getValue(this.graph.config.radius, node);
       this.renderer.drawCircle(
         position,
         //Math.max(node.radius ?? this.config.nodeRadius),
-        radius,
+        radius - 1,
         this.getNodeColor(node),
         true
       );
+
+      // this.renderer.setFillColor('#000000');
+      // this.renderer.drawText(position, String(i));
     });
   }
 }
