@@ -105,7 +105,9 @@ export default class Graph<
 
   private setForces() {
     this.forces = [
-      new GraphLinks<TLinkData>(this.data.links, this.config),
+      this.data.links.length
+        ? new GraphLinks<TLinkData>(this.data.links, this.config)
+        : null,
 
       new GraphCenterForce(this.gravityCenter),
       this.config.gravityForce
@@ -121,7 +123,7 @@ export default class Graph<
             collisionStrength: this.config.collisionStrength,
           })
         : null,
-      new GraphChargeForce(this.size, this.config),
+      this.config.charge ? new GraphChargeForce(this.size, this.config) : null,
     ].filter(Boolean);
   }
 

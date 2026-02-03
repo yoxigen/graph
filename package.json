@@ -1,7 +1,7 @@
 {
-  "name": "string_art",
+  "name": "graph",
   "version": "1.0.0",
-  "description": "String Art Studio",
+  "description": "Graph",
   "source": "./src/index.html",
   "scripts": {
     "dev": "parcel",
