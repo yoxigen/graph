@@ -1,6 +1,7 @@
 import CoordinatesList from '../../../utils/CoordinatesList';
 import GraphPositions from '../Graph.positions';
-import { GraphLinkData, IGraphForce } from '../Graph.types';
+import { GraphLinkData } from '../Graph.types';
+import GraphForce from './GraphForce';
 
 export type GraphLinksConfig = {
   linkLength: number;
@@ -16,22 +17,19 @@ const DEFAULT_CONFIG: GraphLinksConfig = {
   iterations: 1,
 };
 
-export default class GraphLinks<TLinkData = {}> implements IGraphForce {
+export default class GraphLinks<
+  TLinkData = {}
+> extends GraphForce<GraphLinksConfig> {
   private strengths: number[];
   private bias: number[];
-  config: GraphLinksConfig;
 
   constructor(
     public readonly data: Array<TLinkData & GraphLinkData>,
     config: Partial<GraphLinksConfig>
   ) {
-    this.setConfig(config);
+    super(DEFAULT_CONFIG, config);
     this.init();
-  }
-
-  setConfig(config: Partial<GraphLinksConfig>) {
-    this.config = Object.assign({}, DEFAULT_CONFIG, config);
-    this.init();
+    this.on('change', () => this.init());
   }
 
   private init() {

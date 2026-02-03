@@ -1,7 +1,7 @@
 import testData from '../../test_data/graph_test_data';
 import { PrimitiveValue } from '../types/config.types';
 import { GraphConfig } from '../visualizations/graph/Graph.types';
-import Graph from '../visualizations/graph/Graph.vis';
+import Graph from '../visualizations/graph/Graph';
 import {
   deserializeConfig,
   serializeConfig,

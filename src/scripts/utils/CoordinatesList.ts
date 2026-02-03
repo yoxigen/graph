@@ -63,6 +63,22 @@ export default class CoordinatesList {
     this.values[index * 2 + 1] += y;
   }
 
+  addX(index: number, value: number) {
+    this.values[index * 2] += value;
+  }
+
+  addY(index: number, value: number) {
+    this.values[index * 2 + 1] += value;
+  }
+
+  subtractX(index: number, value: number) {
+    this.values[index * 2] -= value;
+  }
+
+  subtractY(index: number, value: number) {
+    this.values[index * 2 + 1] -= value;
+  }
+
   subtractVector(index: number, x: number, y: number) {
     this.values[index * 2] -= x;
     this.values[index * 2 + 1] -= y;

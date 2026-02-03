@@ -1,7 +1,7 @@
 import { GraphLinkData } from '../scripts/visualizations/graph/Graph.types';
 import { TestNodeData } from './graph_test_data';
 
-const maxNodeChildCount = 5;
+const maxNodeChildCount = 9;
 const levels = 3;
 
 const nodes: TestNodeData[] = [

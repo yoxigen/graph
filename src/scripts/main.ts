@@ -1,4 +1,4 @@
-import Graph from './visualizations/graph/Graph.vis';
+import Graph from './visualizations/graph/Graph';
 import GraphCanvas from './visualizations/graph/GraphCanvas';
 import testData, { TestNodeData } from '../test_data/graph_test_data';
 import './components/components';
@@ -25,7 +25,7 @@ function main() {
   const { data: routingData, config: routingConfig } = routing.state;
   const graph = new Graph<TestNodeData>(
     [rect.width, rect.height],
-    routingConfig,
+    { ...routingConfig, radius: ({ radius }) => Math.max(3, radius ?? 4) },
     dataProvider
   );
 
@@ -61,6 +61,17 @@ function main() {
     .addEventListener('click', () => graph.unfixAllNodePositions());
 
   function initConfigControls() {
+    function getRoutingConfig() {
+      const routingConfig: GraphConfig<TestNodeData> = { ...graph.config };
+      for (const k in graph.config) {
+        if (graph.config[k] instanceof Function) {
+          routingConfig[k] = Graph.defaultConfig[k];
+        }
+      }
+
+      return routingConfig;
+    }
+
     const controls = new EditorControls<GraphConfig>(
       document.querySelector('#graph_controls'),
       graphControls,
@@ -79,7 +90,7 @@ function main() {
     });
 
     controls.on('change', () => {
-      routing.navigate({ config: graph.config });
+      routing.navigate({ config: getRoutingConfig() });
     });
 
     renderControls.on('input', ({ control, value }) => {
@@ -88,7 +99,7 @@ function main() {
     });
 
     dataControls.on('data', ({ id, data }) => {
-      routing.navigate({ data: id, config: graph.config });
+      routing.navigate({ data: id, config: getRoutingConfig() });
       dataProvider.setData(data);
     });
 

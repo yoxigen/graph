@@ -27,6 +27,18 @@ const graphControls: ControlsConfig<GraphConfig> = [
     isStructural: true,
   },
   {
+    key: 'collisionStrength',
+    type: 'range',
+    label: 'Collision force strength',
+    attr: {
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
+    defaultValue: 0.1,
+    isStructural: true,
+  },
+  {
     key: 'minEnergy',
     type: 'range',
     label: 'Minumum energy',
@@ -43,7 +55,7 @@ const graphControls: ControlsConfig<GraphConfig> = [
     type: 'range',
     label: 'Link length',
     attr: {
-      min: 2,
+      min: 1,
       max: 100,
       step: 1,
     },
@@ -138,7 +150,7 @@ const graphControls: ControlsConfig<GraphConfig> = [
     defaultValue: false,
   },
   {
-    key: 'useQuadtree',
+    key: 'useQuadTree',
     type: 'checkbox',
     label: 'Use quadtree',
     defaultValue: true,
@@ -154,7 +166,7 @@ const graphControls: ControlsConfig<GraphConfig> = [
     },
     defaultValue: 1,
     isStructural: true,
-    show: ({ useQuadtree }) => useQuadtree,
+    show: ({ useQuadTree }) => useQuadTree,
   },
   {
     key: 'theta',
@@ -168,7 +180,7 @@ const graphControls: ControlsConfig<GraphConfig> = [
     },
     defaultValue: 1,
     isStructural: true,
-    show: ({ useQuadtree }) => useQuadtree,
+    show: ({ useQuadTree }) => useQuadTree,
   },
   {
     key: 'animate',

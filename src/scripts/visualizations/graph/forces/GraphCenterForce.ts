@@ -1,12 +1,14 @@
 import { Coordinates } from '../../../types/position.types';
 import CoordinatesList from '../../../utils/CoordinatesList';
-import { IGraphForce } from '../Graph.types';
+import GraphForce from './GraphForce';
 
-export default class GraphGravity implements IGraphForce {
+export default class GraphCenterForce extends GraphForce {
   constructor(
     public readonly center: Coordinates,
-    public readonly strength = 1
-  ) {}
+    public readonly strength = 0.1
+  ) {
+    super({});
+  }
 
   apply(
     positions: CoordinatesList,
@@ -16,14 +18,18 @@ export default class GraphGravity implements IGraphForce {
     let totalX = 0;
     let totalY = 0;
     positions.forEach((x, y, i) => {
-      totalX += x;
-      totalY += y;
+      if (!fixedPositions.has(i)) {
+        totalX += x;
+        totalY += y;
+      }
     });
 
     const xStrength =
-      this.strength * (totalX / positions.size - this.center[0]);
+      this.strength *
+      (totalX / (positions.size - fixedPositions.size) - this.center[0]);
     const yStrength =
-      this.strength * (totalY / positions.size - this.center[1]);
+      this.strength *
+      (totalY / (positions.size - fixedPositions.size) - this.center[1]);
 
     for (let i = 0; i < positions.size; i++) {
       if (!fixedPositions.has(i)) {

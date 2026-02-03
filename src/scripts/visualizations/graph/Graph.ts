@@ -1,11 +1,5 @@
-import {
-  Coordinates,
-  Dimensions,
-  Vector,
-  WeightedCenter,
-} from '../../types/position.types';
+import { Coordinates, Dimensions } from '../../types/position.types';
 import CoordinatesList from '../../utils/CoordinatesList';
-import { getDistanceBetweenCoordinates } from '../../utils/position_utils';
 import QuadTree from '../../utils/QuadTree';
 import DataProvider from '../DataProvider';
 import Visualization from '../Visualization';
@@ -19,11 +13,13 @@ import {
   WorkerGraphSetDataEvent,
   WorkerGraphFixNodePositionEvent,
 } from './Graph.types';
-import { getForceBetweenNodes } from './graph_utils';
 import GraphDataProvider from './GraphDataProvider';
-import GraphGravity from './forces/GraphGravity';
+import GraphCenterForce from './forces/GraphCenterForce';
 import GraphLinks from './forces/GraphLinks';
 import GraphPositionForce from './forces/GraphPositionForce';
+import GraphCollideForce from './forces/GraphCollideForce';
+import GraphChargeForce from './forces/GraphChargeForce';
+import GraphForce from './forces/GraphForce';
 
 export default class Graph<
   TNodeData extends Object,
@@ -39,14 +35,12 @@ export default class Graph<
     stop: void;
   }
 > {
-  config: GraphConfig;
+  config: GraphConfig<TNodeData>;
   isGenerating: boolean;
   positions: GraphPositions;
   velocities: CoordinatesList;
 
-  private links: GraphLinks<TLinkData>;
-  private gravity: GraphGravity;
-  private positionForce: GraphPositionForce;
+  private forces: GraphForce[];
 
   /**
    * Keys are node indexes
@@ -74,20 +68,23 @@ export default class Graph<
     randomizePositions: false,
     minQuadSize: 2,
     theta: 1,
-    useQuadtree: true,
+    useQuadTree: true,
     allowWorker: true,
     animate: true,
     autoLinkStrength: true,
     linkStrength: 1,
     iterations: 1,
+    radius: 4,
+    collisionStrength: 0.1,
   };
 
   constructor(
     public size: Dimensions,
-    config: Partial<GraphConfig> = {},
+    config: Partial<GraphConfig<TNodeData>> = {},
     data?:
       | GraphDataProvider<TNodeData, TLinkData>
-      | GraphData<TNodeData, TLinkData>
+      | GraphData<TNodeData, TLinkData>,
+    private nodesRadius?: Float16Array
   ) {
     super(data instanceof DataProvider ? data : new DataProvider(data));
 
@@ -106,6 +103,35 @@ export default class Graph<
     return this.data?.nodes.length ?? 0;
   }
 
+  private setForces() {
+    this.forces = [
+      this.data.links.length
+        ? new GraphLinks<TLinkData>(this.data.links, this.config)
+        : null,
+
+      new GraphCenterForce(this.gravityCenter),
+      this.config.gravityForce
+        ? new GraphPositionForce(this.data.nodes, {
+            x: this.size[0] / 2,
+            y: this.size[1] / 2,
+            strength: this.config.gravityForce,
+          })
+        : null,
+      this.config.collisionStrength
+        ? new GraphCollideForce<TNodeData>(this.data.nodes, this.nodesRadius, {
+            radius: this.config.radius,
+            collisionStrength: this.config.collisionStrength,
+          })
+        : null,
+      this.config.charge ? new GraphChargeForce(this.size, this.config) : null,
+    ].filter(Boolean);
+  }
+
+  setNodesRadius(nodesRadius: Float16Array) {
+    this.nodesRadius = nodesRadius;
+    this.setForces();
+  }
+
   setSize(size: Dimensions) {
     if (this.size[0] !== size[0] || this.size[1] !== size[1]) {
       this.size = size;
@@ -121,18 +147,7 @@ export default class Graph<
       this.size[0] * this.config.gravityCenter[0],
       this.size[1] * this.config.gravityCenter[1],
     ];
-    this.gravity = new GraphGravity(
-      this.gravityCenter
-      // this.config.gravityForce
-    );
-
-    this.positionForce = this.config.gravityForce
-      ? new GraphPositionForce(this.data.nodes, {
-          x: this.size[0] / 2,
-          y: this.size[1] / 2,
-          strength: this.config.gravityForce,
-        })
-      : null;
+    this.setForces();
   }
 
   reset() {
@@ -164,8 +179,15 @@ export default class Graph<
     this.isInit = true;
   }
 
+  private getNodesRadiusForMessage(): ArrayBuffer | null {
+    const { radius } = this.config;
+    return radius instanceof Function
+      ? new Float16Array(this.data.nodes.map(n => radius(n))).buffer
+      : null;
+  }
   private onDataChange(data: GraphData<TNodeData, TLinkData>) {
-    this.links = new GraphLinks<TLinkData>(data.links, this.config);
+    this.setForces();
+
     this.fixedPositions.clear();
     this.alpha = 1;
     this.isInit = false;
@@ -174,6 +196,7 @@ export default class Graph<
       type: 'setData',
       links: data.links,
       nodes: data.nodes,
+      nodesRadius: this.getNodesRadiusForMessage(),
     } as WorkerGraphSetDataEvent<TNodeData>);
 
     this.emit('dataChange', data);
@@ -189,7 +212,9 @@ export default class Graph<
       if (key === 'gravityCenter' || key === 'gravityForce') {
         this.#setGravityCenter();
       }
-      this.links.setConfig(this.config);
+
+      // @ts-ignore
+      this.forces.forEach(force => force.setConfigValue(key, value));
 
       if (notifyChange) {
         this.alpha = 1;
@@ -231,9 +256,13 @@ export default class Graph<
     }
   }
 
-  selectNodeAt(x: number, y: number): { index: number; data: TNodeData } {
+  selectNodeAt(
+    x: number,
+    y: number,
+    radius = 20
+  ): { index: number; data: TNodeData } {
     this.createQuadTree();
-    const nodeIndex = this.quadTree.findElementAt(x, y, 10)?.id;
+    const nodeIndex = this.quadTree.findElementAt(x, y, radius)?.id;
     if (nodeIndex != null) {
       return { data: this.data.nodes[nodeIndex], index: nodeIndex };
     }
@@ -284,12 +313,18 @@ export default class Graph<
         type: 'module',
       });
 
+      const { radius } = this.config;
+
       this.worker.postMessage({
         type: 'init',
-        config: this.config,
+        config: {
+          ...this.config,
+          radius: radius instanceof Function ? 0 : radius,
+        },
         dimensions: this.size,
         links: this.data.links,
         nodes: this.data.nodes,
+        nodesRadius: this.getNodesRadiusForMessage(),
       } as WorkerGraphInitEvent<TNodeData>);
 
       this.worker.onmessage = (e: MessageEvent<MessageEventFromWorker>) =>
@@ -304,7 +339,6 @@ export default class Graph<
         this.emit('tick', null);
         break;
       case 'end':
-        console.log('END-------');
         this.isGenerating = false;
         break;
     }
@@ -314,7 +348,6 @@ export default class Graph<
     if (!this.isWorker && !this.isGenerating) {
       //this.isGenerating = true;
       this.initWorker();
-      console.log('start---');
       this.worker.postMessage({ type: 'start' });
     }
   }
@@ -378,58 +411,9 @@ export default class Graph<
       count++;
     }
 
-    console.log('TICKS: ', count);
     this.isGenerating = false;
     this.velocities.fill(0);
     this.emit('stop', null);
-  }
-
-  /**
-   * Get the weighted positions of forces, relative to the given position p
-   * @param p
-   * @param quadTree
-   */
-  private *generateForceCoordinates(
-    p: Coordinates,
-    quadTree: QuadTree
-  ): Generator<WeightedCenter> {
-    const wc = quadTree.getWeightedCenter();
-    if (
-      quadTree.width / getDistanceBetweenCoordinates(wc.center, p) <
-      this.config.theta
-    ) {
-      // Long distance, use the weighed center
-      yield wc;
-    } else {
-      // quadtree is near, get its inner forces
-      if (quadTree.elements) {
-        for (const el of quadTree.elements) {
-          yield { center: el.coordinates, weight: 1 };
-        }
-      } else {
-        for (const child of quadTree.children.values()) {
-          if (child.weight) {
-            yield* this.generateForceCoordinates(p, child);
-          }
-        }
-      }
-    }
-  }
-
-  private addForce(nodeIndex: number, force: Vector) {
-    if (!force) {
-      return;
-    }
-
-    this.velocities.addVector(nodeIndex, ...force);
-  }
-
-  private subtractForce(nodeIndex: number, force: Vector) {
-    if (!force) {
-      return;
-    }
-
-    this.velocities.subtractVector(nodeIndex, ...force);
   }
 
   private createQuadTree() {
@@ -439,63 +423,12 @@ export default class Graph<
   }
 
   private applyForces() {
-    let count = 0;
-
-    if (this.config.useQuadtree) {
+    if (this.config.useQuadTree) {
       this.createQuadTree();
     }
 
-    this.links.apply(this.positions, this.velocities);
-    this.positionForce?.apply(this.positions, this.velocities);
-    this.gravity.apply(this.positions, this.velocities, this.fixedPositions);
-
-    // Nodes gravity and repulsion between each other:
-    for (let i = 0; i < this.nodesCount; i++) {
-      const isFixed = this.fixedPositions.has(i);
-      const nodePosition = this.positions.get(i);
-
-      // if (!isFixed) {
-      //   const gravityForce = getGravityForce(
-      //     nodePosition,
-      //     this.gravityCenter,
-      //     this.config.gravityForce
-      //   );
-      //   this.addForce(i, gravityForce);
-      // }
-      if (this.config.useQuadtree) {
-        if (!isFixed) {
-          const generateWeightedCenters = this.generateForceCoordinates(
-            nodePosition,
-            this.quadTree
-          );
-          for (const { center, weight } of generateWeightedCenters) {
-            const force = getForceBetweenNodes(
-              nodePosition,
-              center,
-              this.config.charge * weight,
-              this.config.minDistance
-            );
-            this.addForce(i, force);
-            count++;
-          }
-        }
-      } else {
-        for (let j = i + 1; j < this.nodesCount; j++) {
-          const force = getForceBetweenNodes(
-            nodePosition,
-            this.positions.get(j),
-            this.config.charge,
-            this.config.minDistance
-          );
-          if (!isFixed) {
-            this.addForce(i, force);
-          }
-          if (!this.fixedPositions.has(j)) {
-            this.subtractForce(j, force);
-          }
-          count++;
-        }
-      }
-    }
+    this.forces.forEach(force =>
+      force.apply(this.positions, this.velocities, this.fixedPositions)
+    );
   }
 }
